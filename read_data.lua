@@ -20,7 +20,6 @@ local segdir = path.join(path.abspath(data_dir), 'PKLotSegmented')
   local trainset = {}
   trainset.names = {}
   trainset.data = torch.zeros(num_train, 3, IMG_HEIGHT, IMG_WIDTH)
-  -- TODO: make sure you don't need a CUDA tensor
   
   local testset = {}
   testset.names = {}
