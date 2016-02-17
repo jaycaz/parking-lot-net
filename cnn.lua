@@ -10,75 +10,10 @@ require 'torch'
 require 'nn'
 require 'cunn';
 require 'optim' -- for various trainer methods
-
--------------------------------------------------------------------------
-require 'torch'
 require 'image'
 require 'pl'
+read_data = require("read_data")
 
-data_dir = '/home/jordan/Documents/PKLot'
-IMG_WIDTH = 49
-IMG_HEIGHT = 64
-
-lot_names = {'PUC', 'PUCPR', 'UFPR04', 'UFPR05'}
-weather_names = {'Cloudy', 'Rainy', 'Sunny'}
-classes = {'Empty', 'Occupied'}
-
--- TODO: Gets files sequentially for now.  Change so it draws randomly
-function get_train_test_sets(num_train, num_test)
-local segdir = path.join(path.abspath(data_dir), 'PKLotSegmented')
-  local trainset = {}
-  -- trainset.names = {}
-  trainset.data = torch.zeros(num_train, 3, IMG_HEIGHT, IMG_WIDTH)
-  trainset.label = {}
-  
-  local testset = {}
-  -- testset.names = {}
-  testset.data = torch.zeros(num_test, 3, IMG_HEIGHT, IMG_WIDTH)
-  testset.label = {}
-  
-  local n = 1
-  
-  for lotdir in paths.iterdirs(segdir) do
-    for weatherdir in paths.iterdirs(path.join(segdir, lotdir)) do
-      for datedir in paths.iterdirs(path.join(segdir, lotdir, weatherdir)) do
-        for vacancydir in paths.iterdirs(path.join(segdir, lotdir, weatherdir, datedir)) do
-          for file in paths.iterfiles(path.join(segdir, lotdir, weatherdir, datedir, vacancydir)) do
-            local filepath = path.join(segdir, lotdir, weatherdir, datedir, vacancydir, file)
-            local scaledimage = image.scale(image.load(filepath), IMG_WIDTH, IMG_HEIGHT)
-            local label = 0
-            for i,v in ipairs(classes) do
-              if vacancydir == v then
-                label = i
-              end
-            end
-            assert(label ~= 0, 'Class label found that is neither Empty nor Occupied')
-            
-            -- Add name to names and data to data tensor
-            if n <= num_train then
-              -- trainset.names[n] = filepath
-              trainset.data[{n, {}, {}, {}}]:add(scaledimage)
-              trainset.label[n] = label
-            elseif n <= num_train + num_test then
-              -- testset.names[n-num_train] = filepath
-              testset.data[{n-num_train, {}, {}, {}}]:add(scaledimage)
-              testset.label[n-num_train] = label
-            else
-              break
-            end
-            n = n+1
-          end
-        end
-      end    
-    end
-  end
-  
-  return trainset, testset
-end
-
--------------------------------------------------------------------------
-
--- local read_data = require "read_data"
 -------------------- Parameters for network --------------------------
 
 -- Hyperparameters
@@ -95,7 +30,7 @@ pool_size = 2
 
 
 -- class 0 means empty parking spot, 1 means occupied spot
-
+classes = {'Empty', 'Occupied'}
 
 input_channels = 3
 -- width = ?
@@ -105,8 +40,8 @@ input_channels = 3
 -- TODO: Load the data.
 NUM_TRAIN = 100
 NUM_TEST = 100
-trainset, testset = get_train_test_sets(NUM_TRAIN, NUM_TEST)
--- print(#trainset.label)
+trainset, testset = read_data.get_train_test_sets(NUM_TRAIN, NUM_TEST)
+--print(#trainset.label)
 -- for k,v in ipairs(trainset.label) do print(v) end
 
 -- Add index operator for trainset
@@ -115,13 +50,17 @@ setmetatable(trainset,
                     return {t.data[i], t.label[i]} 
                 end}
 );
-trainset.data = trainset.data:double() -- convert the data from a ByteTensor to a DoubleTensor.
 
+trainset.data = trainset.data:double() -- convert the data from a ByteTensor to a DoubleTensor.
+ 
 function trainset:size() 
     return self.data:size(1) 
 end
 
--- print(trainset[33][1]:size())
+--print(trainset[33][1]:size())
+--print(#trainset)
+--print(#testset)
+
 -------------------- Set up of network ------------------------------
 
 net = nn.Sequential()
@@ -161,7 +100,7 @@ trainer.maxIteration = num_epochs
 -- Preprocessing of the data
 mean = {} -- store the mean, to normalize the test set in the future
 stdv  = {} -- store the standard-deviation for the future
-for i=1,3 do -- over each image channel
+for i=1,input_channels do -- over each image channel
     mean[i] = trainset.data[{ {}, {i}, {}, {}  }]:mean() -- mean estimation
     print('Channel ' .. i .. ', Mean: ' .. mean[i]) -- for debugging
     trainset.data[{ {}, {i}, {}, {}  }]:add(-mean[i]) -- mean subtraction
@@ -174,14 +113,12 @@ for i=1,3 do -- over each image channel
 end
 
 
-
 -- Modifications to be able to use a GPU
-net = net:cuda()
-criterion = criterion:cuda()
-trainset.data = trainset.data:cuda()
+-- net = net:cuda()
+-- criterion = criterion:cuda()
+-- trainset.data = trainset.data:cuda()
 
 
 
 -- train the network
 trainer:train(trainset)
-
