@@ -8,7 +8,7 @@
 
 require 'torch'
 require 'nn'
-require 'cunn';
+--require 'cunn';
 require 'optim' -- for various trainer methods
 require 'image'
 require 'pl'
@@ -21,7 +21,7 @@ learning_rate = 0.001
 num_epochs = 25
 
 -- network architecture
-fc_layers = {120} -- number of nodes in each fully connected layers (output layer is added additionally)
+fc_layers = {120, 50, 10} -- number of nodes in each fully connected layers (output layer is added additionally)
 conv_layers = {10, 20} -- number of nodes in each convolutional layer
 filter_size = 5 -- filter size for convolutional layers
 pad = 2
@@ -33,9 +33,8 @@ pool_size = 2
 classes = {'Empty', 'Occupied'}
 
 input_channels = 3
--- width = ?
--- height = ?
-
+local IMG_WIDTH = 48
+local IMG_HEIGHT = 64
 
 -- TODO: Load the data.
 NUM_TRAIN = 100
@@ -58,34 +57,41 @@ function trainset:size()
 end
 
 --print(trainset[33][1]:size())
---print(#trainset)
---print(#testset)
 
 -------------------- Set up of network ------------------------------
 
 net = nn.Sequential()
 
--- Convolution on a 3 channel image, with 10 nodes and 5x5 convolutions. Followed by a ReLu and a 2x2 max pooling layer.
+-- Adding first layer
 net:add(nn.SpatialConvolution(input_channels, conv_layers[1], filter_size, filter_size, stride, stride, pad, pad))  
 net:add(nn.ReLU())                       
 net:add(nn.SpatialMaxPooling(pool_size,pool_size,pool_size,pool_size))     
 
--- Convolution with 20 nodes and 5x5 convolutions. Followed by a ReLu and a 2x2 max pooling layer.
-net:add(nn.SpatialConvolution(conv_layers[1], conv_layers[2], filter_size, filter_size, stride, stride, pad, pad))
-net:add(nn.ReLU())                       
-net:add(nn.SpatialMaxPooling(pool_size,pool_size,pool_size,pool_size))
+-- adding rest of conv layers
+for i=2,#conv_layers do
+  net:add(nn.SpatialConvolution(conv_layers[i - 1], conv_layers[i], filter_size, filter_size, stride, stride, pad, pad))
+  net:add(nn.ReLU())                       
+  net:add(nn.SpatialMaxPooling(pool_size,pool_size,pool_size,pool_size))
+end
 
 -- Start of fully-connected part: 
---TO DO: size of fully connected layer has to be adjusted to input size!!
 -- TODO: Not hardcode image size
-local fcin = {conv_layers[2], 16, 12}
+local pow = #conv_layers
+local fcin = {conv_layers[#conv_layers], IMG_HEIGHT/(math.pow(2, pow)), IMG_WIDTH/(math.pow(2, pow))}
 local fcinprod = torch.prod(torch.Tensor(fcin))
 
+-- Adding fully connected layers
 net:add(nn.View(fcinprod))
 -- net:add(nn.Reshape(fcinprod))
 net:add(nn.Linear(fcinprod, fc_layers[1]))             
 net:add(nn.ReLU())                       
-net:add(nn.Linear(fc_layers[1], #classes))
+
+for i=2,#fc_layers do
+  net:add(nn.Linear(fc_layers[i - 1], fc_layers[i]))
+  net:add(nn.ReLU())
+end
+
+net:add(nn.Linear(fc_layers[#fc_layers], #classes))
 net:add(nn.LogSoftMax())    
 
 -- Add a negative log-likelihood criterion for multi-class classification

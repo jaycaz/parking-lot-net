@@ -21,9 +21,9 @@ classes = {'Empty', 'Occupied'}
 
 -- TODO: Gets files sequentially for now.  Change so it draws randomly
 function read_data.get_train_test_sets(num_train, num_test)
-  -- local data_dir = '/Users/martina/Documents/Uni/USA/Stanford/2.Quarter/CNN/Finalproject/PKLot'
-  local data_dir = '/home/jordan/Documents/PKLot'
-  local IMG_WIDTH = 49
+  local data_dir = '/Users/martina/Documents/Uni/USA/Stanford/2.Quarter/CNN/Finalproject/PKLot'
+  --local data_dir = '/home/jordan/Documents/PKLot'
+  local IMG_WIDTH = 48
   local IMG_HEIGHT = 64
 
   local lot_names = {'PUC', 'PUCPR', 'UFPR04', 'UFPR05'}
