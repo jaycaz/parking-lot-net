@@ -21,6 +21,11 @@ local cmd = torch.CmdLine()
 cmd:option('-learning_rate', 0.001)
 cmd:option('-num_epochs', 25)
 cmd:option('-opt_method', 'sgd')
+cmd:option('-lr_decay_every', 5)
+cmd:option('-lr_decay_factor', 0.5)
+
+-- Output options
+cmd:option('-print_every', 1)
 
 -- network architecture
 fc_layers = {120, 50, 10} -- number of nodes in each fully connected layers (output layer is added additionally)
@@ -135,7 +140,6 @@ for i=1,input_channels do -- over each image channel
     -- trainset.data[{ {}, {i}, {}, {}  }]:div(stdv[i]) -- std scaling
 end
 
-local weights, grad_params = net:getParameters()
 
 -- function for the optim methods
 local function f(w)
@@ -152,14 +156,28 @@ local function f(w)
 end
 
 -- train the network
-if params.opt_method == 'sgd':
+if params.opt_method == 'sgd' then
   trainer:train(trainset)
-elseif params.opt_method == 'adam': 
+elseif params.opt_method == 'adam' then
   local epoch = math.floor(i / num_train) + 1
   
   -- Maybe decay learning rate
-  if epoch % opt.lr_decay_every == 0 then
+  if epoch % params.lr_decay_every == 0 then
     local old_lr = optim_config.learningRate
-    optim_config = {learningRate = old_lr * opt.lr_decay_factor}
+    optim_config = {learningRate = old_lr * params.lr_decay_factor}
   end
+
+  -- update step
+  local _, loss = optim.adam(f, weights, optim_config)
+  table.insert(train_loss_history, loss[1])
+
+  -- print
+  if params.print_every > 0 and i % params.print_every == 0 then
+    local float_epoch = i / num_train + 1
+    local msg = 'Epoch %.2f / %d, i = %d / %d, loss = %f'
+    local args = {msg, float_epoch, params.max_epochs, i, num_iterations, loss[1]}
+    print(string.format(unpack(args)))
+  end
+  
+  weights, grad_params = net:getParameters()
 end
