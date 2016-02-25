@@ -3,26 +3,13 @@
 
 -- TODO: Change 'PUC' folder in segmented to 'PUCPR'
 
---require 'torch'
---require 'image'
---require 'pl'
-
 
 local read_data = {}
 -- TODO: eliminate duplication of classes table
 classes = {'Empty', 'Occupied'}
 
---data_dir = '/Users/martina/Documents/Uni/USA/Stanford/2.Quarter/CNN/Final project/PKLot'
---IMG_WIDTH = 49
---IMG_HEIGHT = 64
-
---lot_names = {'PUC', 'PUCPR', 'UFPR04', 'UFPR05'}
---weather_names = {'Cloudy', 'Rainy', 'Sunny'}
-
 -- TODO: Gets files sequentially for now.  Change so it draws randomly
-function read_data.get_train_test_sets(num_train, num_test)
-  local data_dir = '/Users/martina/Documents/Uni/USA/Stanford/2.Quarter/CNN/Finalproject/PKLot'
-  --local data_dir = '/home/jordan/Documents/PKLot'
+function read_data.get_train_test_sets(num_train, num_test, data_dir)
   local IMG_WIDTH = 48
   local IMG_HEIGHT = 64
 

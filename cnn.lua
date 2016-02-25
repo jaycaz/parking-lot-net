@@ -8,7 +8,6 @@
 
 require 'torch'
 require 'nn'
---require 'cunn';
 require 'optim' -- for various trainer methods
 require 'image'
 require 'pl'
@@ -16,9 +15,12 @@ read_data = require("read_data")
 
 -------------------- Parameters for network --------------------------
 
+local cmd = torch.CmdLine()
+
 -- Hyperparameters
-learning_rate = 0.001
-num_epochs = 25
+cmd:option('-learning_rate', 0.001)
+cmd:option('-num_epochs', 25)
+cmd:option('-opt_method', 'sgd')
 
 -- network architecture
 fc_layers = {120, 50, 10} -- number of nodes in each fully connected layers (output layer is added additionally)
@@ -36,10 +38,25 @@ input_channels = 3
 local IMG_WIDTH = 48
 local IMG_HEIGHT = 64
 
+-- GPU options
+cmd:option('-gpu', 0)
+
 -- TODO: Load the data.
+cmd:option('-path', '/Users/martina/Documents/Uni/USA/Stanford/2.Quarter/CNN/Finalproject/PKLot')
+--local data_dir = '/home/jordan/Documents/PKLot'
+
+local params = cmd:parse(arg)
+
+if params.gpu > 0 then  
+  require 'cunn';
+  net = net:cuda()
+  criterion = criterion:cuda()
+  trainset.data = trainset.data:cuda()
+end
+
 NUM_TRAIN = 100
 NUM_TEST = 100
-trainset, testset = read_data.get_train_test_sets(NUM_TRAIN, NUM_TEST)
+trainset, testset = read_data.get_train_test_sets(NUM_TRAIN, NUM_TEST, params.path)
 --print(#trainset.label)
 -- for k,v in ipairs(trainset.label) do print(v) end
 
@@ -99,8 +116,8 @@ criterion = nn.ClassNLLCriterion()
 
 -- Add a trainer with learning rate and number of epochs
 trainer = nn.StochasticGradient(net, criterion)
-trainer.learningRate = learning_rate
-trainer.maxIteration = num_epochs
+trainer.learningRate = params.learning_rate
+trainer.maxIteration = params.num_epochs
 
 
 -- Preprocessing of the data
@@ -118,13 +135,31 @@ for i=1,input_channels do -- over each image channel
     -- trainset.data[{ {}, {i}, {}, {}  }]:div(stdv[i]) -- std scaling
 end
 
+local weights, grad_params = net:getParameters()
 
--- Modifications to be able to use a GPU
--- net = net:cuda()
--- criterion = criterion:cuda()
--- trainset.data = trainset.data:cuda()
+-- function for the optim methods
+local function f(w)
+  assert(w == params)
+  grad_params:zero()
+  
+  -- DOTO: get minibatch of data, convert to cuda
 
-
+  local scores = model:forward(x)
+  local loss = crit:forward(scores, y) --maybe have to reshape scores?!
+  local grad_scores = crit:backward(scores, y)
+  model:backward(x, grad_scores)
+  return loss, grad_params
+end
 
 -- train the network
-trainer:train(trainset)
+if params.opt_method == 'sgd':
+  trainer:train(trainset)
+elseif params.opt_method == 'adam': 
+  local epoch = math.floor(i / num_train) + 1
+  
+  -- Maybe decay learning rate
+  if epoch % opt.lr_decay_every == 0 then
+    local old_lr = optim_config.learningRate
+    optim_config = {learningRate = old_lr * opt.lr_decay_factor}
+  end
+end
