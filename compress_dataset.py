@@ -1,9 +1,10 @@
 
 # coding: utf-8
 
-# In[1]:
+# In[19]:
 
 import h5py
+import sys
 import os
 import os.path
 import numpy as np
@@ -24,13 +25,21 @@ LOT_SET = set(LOT)
 
 # User defined variables here
 root = r'C:\Users\jacaz_000\Downloads\PKLot\PKLotSegmented'
-add_prob = 1.0 # Change this to add fewer files
+add_prob = 0.1 # Change this to add fewer files
 
 total_images = 695899
 
 image_mask = np.random.binomial(1, add_prob, size=(total_images,))
 image_count = image_mask.sum()
 print "Adding {0} images each with prob. {1} = {2} images".format(total_images, add_prob, image_count)
+
+
+# In[20]:
+
+sys.stdout.flush()
+
+
+# In[24]:
 
 # print "Counting images..."
 # for path, dirs, files in os.walk(root):
@@ -40,6 +49,7 @@ print "Adding {0} images each with prob. {1} = {2} images".format(total_images, 
 
 fname = 'pklot.hdf5'
 print "Creating HDF5 file ", fname
+print "Adding images... (* = 1,000 added)"
 
 with h5py.File(fname, 'w') as hf:
 
@@ -58,14 +68,9 @@ with h5py.File(fname, 'w') as hf:
     
     occupied_dset = hf.create_dataset('meta_occupied', (image_count,), dtype='i')
     weather_dset = hf.create_dataset('meta_weather', (image_count,), dtype='i')
-    
-
-    print "Adding images... (* = 1,000 added)"
 
     i = 0
     for path, dirs, files in os.walk(root):
-        if len(files) == 0:
-            continue
 
         # Get metadata of current folder
         tags = path.split(os.path.sep)
@@ -77,17 +82,17 @@ with h5py.File(fname, 'w') as hf:
 
         # Add image files
         for f in files:
-            if image_mask[i] == 0:
-                continue
-                
+#             if image_mask[i] == 0:
+#                 continue
+
             # Get Date and Time metadata
-            date = f[:f.find('_')]
+            date = f[:f.index('_')]
             year, month, day = tuple(date.split('-'))
 
-            time = f[f.find('_') + 1: f.find('#')]
+            time = f[f.index('_') + 1: f.index('#')]
             hour, minute, second = tuple(time.split('_'))
 
-            space = int(f[f.find('#') + 1:f.find('.')])
+            space = int(f[f.index('#') + 1:f.index('.')])
 
             # Extract image data, resize and add to file
             im = Image.open(os.path.join(path, f))
@@ -118,8 +123,9 @@ with h5py.File(fname, 'w') as hf:
 #                 print month_dset[i], day_dset[i], hour_dset[i], minute_dset[i], lot_dset[i], space_dset[i], occupied_dset[i], weather_dset[i]
 
             i += 1
-            if i % 1000 == 0:
+            if i % 1 == 0:
                 print "*",
+                sys.stdout.flush()
             if i % 10000 == 0:
                 print ""
             if i % 100000 == 0:
@@ -136,4 +142,10 @@ with h5py.File(fname, 'w') as hf:
 #     print space
 #     break
 #     print path, dirs
+
+
+
+# In[ ]:
+
+
 
