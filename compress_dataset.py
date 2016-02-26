@@ -23,19 +23,20 @@ LOT = ['PUC', 'UFPR04', 'UFPR05']
 LOT_SET = set(LOT)
 
 # User defined variables here
-root = r'C:\Users\jacaz_000\Downloads\PKLot\PKLotSegmented'
+#root = r'C:\Users\jacaz_000\Downloads\PKLot\PKLotSegmented'
+root = r'../PKLot/PKLotSegmented2'
 add_prob = 1.0 # Change this to add fewer files
 
-total_images = 695899
+total_images = 0 
+print "Counting images..."
+for path, dirs, files in os.walk(root):
+    total_images += len(files)
+print "Image count: ", total_images
+
 
 image_mask = np.random.binomial(1, add_prob, size=(total_images,))
 image_count = image_mask.sum()
 print "Adding {0} images each with prob. {1} = {2} images".format(total_images, add_prob, image_count)
-
-# print "Counting images..."
-# for path, dirs, files in os.walk(root):
-#     image_count += len(files)
-# print "Image count: ", image_count
 
 
 fname = 'pklot.hdf5'
@@ -64,8 +65,8 @@ with h5py.File(fname, 'w') as hf:
 
     i = 0
     for path, dirs, files in os.walk(root):
-        if len(files) == 0:
-            continue
+        #if len(files) == 0:
+        #    continue
 
         # Get metadata of current folder
         tags = path.split(os.path.sep)
@@ -77,53 +78,54 @@ with h5py.File(fname, 'w') as hf:
 
         # Add image files
         for f in files:
-            if image_mask[i] == 0:
-                continue
-                
-            # Get Date and Time metadata
-            date = f[:f.find('_')]
-            year, month, day = tuple(date.split('-'))
+            _, ext = os.path.splitext(f)
+	    if ext == '.jpg':
+	      
+       
+              # Get Date and Time metadata
+              date = f[:f.find('_')]
+              year, month, day = tuple(date.split('-'))
 
-            time = f[f.find('_') + 1: f.find('#')]
-            hour, minute, second = tuple(time.split('_'))
+              time = f[f.find('_') + 1: f.find('#')]
+              hour, minute, second = tuple(time.split('_'))
 
-            space = int(f[f.find('#') + 1:f.find('.')])
+              space = int(f[f.find('#') + 1:f.find('.')])
 
-            # Extract image data, resize and add to file
-            im = Image.open(os.path.join(path, f))
-            im = im.resize((WIDTH, HEIGHT), Image.BICUBIC)
+              # Extract image data, resize and add to file
+              im = Image.open(os.path.join(path, f))
+              im = im.resize((WIDTH, HEIGHT), Image.BICUBIC)
 
-            imdata = np.asarray(im.getdata())
-            imdata = imdata.reshape((3, im.height, im.width))
-            im.close()
-#             print imdata.shape
+              imdata = np.asarray(im.getdata())
+              imdata = imdata.reshape((3, im.height, im.width))
+              im.close()
+#               print imdata.shape
 
-            # Add all data to HDF5
-            data_dset[i,:,:,:] = imdata
+              # Add all data to HDF5
+              data_dset[i,:,:,:] = imdata
 
-            month_dset[i] = int(month)
-            day_dset[i] = int(day)
+              month_dset[i] = int(month)
+              day_dset[i] = int(day)
 
-            hour_dset[i] = int(hour)
-            minute_dset[i] = int(minute)
+              hour_dset[i] = int(hour)
+              minute_dset[i] = int(minute)
 
-            lot_dset[i] = LOT.index(lot) + 1
-            space_dset[i] = space
+              lot_dset[i] = LOT.index(lot) + 1
+              space_dset[i] = space
 
-            occupied_dset[i] = OCCUPIED.index(occupied) + 1
-            weather_dset[i] = WEATHER.index(weather) + 1       
+              occupied_dset[i] = OCCUPIED.index(occupied) + 1
+              weather_dset[i] = WEATHER.index(weather) + 1       
 
-#             if np.random.sample() < 1e-3:
-#                 print month, day, hour, minute, lot, space, occupied, weather
-#                 print month_dset[i], day_dset[i], hour_dset[i], minute_dset[i], lot_dset[i], space_dset[i], occupied_dset[i], weather_dset[i]
+#               if np.random.sample() < 1e-3:
+#                   print month, day, hour, minute, lot, space, occupied, weather
+#                   print month_dset[i], day_dset[i], hour_dset[i], minute_dset[i], lot_dset[i], space_dset[i], occupied_dset[i], weather_dset[i]
 
-            i += 1
-            if i % 1000 == 0:
-                print "*",
-            if i % 10000 == 0:
-                print ""
-            if i % 100000 == 0:
-                print "\n"
+              i += 1
+              if i % 1000 == 0:
+                  print "*",
+              if i % 10000 == 0:
+                  print ""
+              if i % 100000 == 0:
+                  print "\n"
 
     hf.close()
     
