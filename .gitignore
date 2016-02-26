@@ -41,3 +41,7 @@ luac.out
 
 # itorch notebooks
 *ipynb*
+
+# Custom ignores
+*.hdf5
+*~
