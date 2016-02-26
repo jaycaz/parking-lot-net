@@ -1,9 +1,10 @@
 
 # coding: utf-8
 
-# In[1]:
+# In[19]:
 
 import h5py
+import sys
 import os
 import os.path
 import numpy as np
@@ -39,8 +40,13 @@ image_count = image_mask.sum()
 print "Adding {0} images each with prob. {1} = {2} images".format(total_images, add_prob, image_count)
 
 
+
+sys.stdout.flush()
+
+
 fname = 'pklot.hdf5'
 print "Creating HDF5 file ", fname
+print "Adding images... (* = 1,000 added)"
 
 with h5py.File(fname, 'w') as hf:
 
@@ -59,9 +65,6 @@ with h5py.File(fname, 'w') as hf:
     
     occupied_dset = hf.create_dataset('meta_occupied', (image_count,), dtype='i')
     weather_dset = hf.create_dataset('meta_weather', (image_count,), dtype='i')
-    
-
-    print "Adding images... (* = 1,000 added)"
 
     i = 0
     for path, dirs, files in os.walk(root):
@@ -126,6 +129,9 @@ with h5py.File(fname, 'w') as hf:
                   print ""
               if i % 100000 == 0:
                   print "\n"
+#             if image_mask[i] == 0:
+#                 continue
+
 
     hf.close()
     
@@ -138,4 +144,9 @@ with h5py.File(fname, 'w') as hf:
 #     print space
 #     break
 #     print path, dirs
+
+
+
+
+
 
