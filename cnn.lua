@@ -73,6 +73,7 @@ setmetatable(trainset,
 );
 
 trainset.data = trainset.data:double() -- convert the data from a ByteTensor to a DoubleTensor.
+
  
 function trainset:size() 
     return self.data:size(1) 
@@ -119,12 +120,6 @@ net:add(nn.LogSoftMax())
 -- Add a negative log-likelihood criterion for multi-class classification
 criterion = nn.ClassNLLCriterion()
 
--- Add a trainer with learning rate and number of epochs
-trainer = nn.StochasticGradient(net, criterion)
-trainer.learningRate = params.learning_rate
-trainer.maxIteration = params.num_epochs
-
-
 -- Preprocessing of the data
 mean = {} -- store the mean, to normalize the test set in the future
 stdv  = {} -- store the standard-deviation for the future
@@ -140,44 +135,70 @@ for i=1,input_channels do -- over each image channel
     -- trainset.data[{ {}, {i}, {}, {}  }]:div(stdv[i]) -- std scaling
 end
 
+weights, grad_params = net:getParameters()
 
 -- function for the optim methods
 local function f(w)
-  assert(w == params)
+  assert(w == weights)
   grad_params:zero()
   
-  -- DOTO: get minibatch of data, convert to cuda
+  -- DO TO: get minibatch of data, convert to cuda
+  local x = trainset.data
+  local y = torch.Tensor(trainset.label)
 
-  local scores = model:forward(x)
-  local loss = crit:forward(scores, y) --maybe have to reshape scores?!
-  local grad_scores = crit:backward(scores, y)
-  model:backward(x, grad_scores)
+  local scores = net:forward(x)
+  --local scores_view = scores:view(N, -1)
+  --local y_view = y:view(N)
+  --local loss = crit:forward(scores_view, y_view)
+  local loss = criterion:forward(scores, y) --maybe have to reshape scores?!
+  
+  --local grad_scores = criterion:backward(scores_view, y_view):view(N, -1)
+  local grad_scores = criterion:backward(scores, y)
+  net:backward(x, grad_scores)
   return loss, grad_params
 end
 
+-- For plotting and evaluation
+local train_loss_history = {}
+confusion = optim.ConfusionMatrix(classes)
+
+
 -- train the network
 if params.opt_method == 'sgd' then
+  trainer = nn.StochasticGradient(net, criterion)
+  trainer.learningRate = params.learning_rate
+  trainer.maxIteration = params.num_epochs
   trainer:train(trainset)
 elseif params.opt_method == 'adam' then
-  local epoch = math.floor(i / num_train) + 1
+  local optim_config = {learningRate = params.learning_rate}
+  local num_iterations = params.num_epochs * NUM_TRAIN 
   
-  -- Maybe decay learning rate
-  if epoch % params.lr_decay_every == 0 then
-    local old_lr = optim_config.learningRate
-    optim_config = {learningRate = old_lr * params.lr_decay_factor}
-  end
+  for i = 1, num_iterations do
+    local epoch = math.floor(i / NUM_TRAIN) + 1
+    
+    -- Maybe decay learning rate
+    if epoch % params.lr_decay_every == 0 then
+      local old_lr = optim_config.learningRate
+      optim_config = {learningRate = old_lr * params.lr_decay_factor}
+    end
 
-  -- update step
-  local _, loss = optim.adam(f, weights, optim_config)
-  table.insert(train_loss_history, loss[1])
+    -- update step
+    local _, loss = optim.adam(f, weights, optim_config)
+    table.insert(train_loss_history, loss[1])
 
-  -- print
-  if params.print_every > 0 and i % params.print_every == 0 then
-    local float_epoch = i / num_train + 1
-    local msg = 'Epoch %.2f / %d, i = %d / %d, loss = %f'
-    local args = {msg, float_epoch, params.max_epochs, i, num_iterations, loss[1]}
-    print(string.format(unpack(args)))
-  end
+    -- update confusion
+    --confusion:add(output, targets[i])
+    --local trainAccuracy = confusion.totalValid * 100
+    --confusion:zero()
+
+    -- print
+    if params.print_every > 0 and i % params.print_every == 0 then
+      local float_epoch = i / NUM_TRAIN + 1
+      local msg = 'Epoch %.2f / %d, i = %d / %d, loss = %f'
+      local args = {msg, float_epoch, params.num_epochs, i, num_iterations, loss[1]}
+      print(string.format(unpack(args)))
+    end
   
-  weights, grad_params = net:getParameters()
+    weights, grad_params = net:getParameters()
+  end
 end

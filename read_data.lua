@@ -50,10 +50,12 @@ function read_data.get_train_test_sets(num_train, num_test, data_dir)
               table.insert(trainset.names, filepath)
               trainset.data[{n, {}, {}, {}}]:add(scaledimage)
               table.insert(trainset.label, label)
+	      --trainset.label[{n}]:add(label)
             elseif n <= num_train + num_test then
               table.insert(testset.names, filepath)
               testset.data[{n-num_train, {}, {}, {}}]:add(scaledimage)
               table.insert(testset.label, label)
+	      --testset.label[{n-numtrain}]:add(label)
             else
               break
             end
