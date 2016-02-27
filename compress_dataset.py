@@ -25,7 +25,7 @@ LOT_SET = set(LOT)
 
 # User defined variables here
 #root = r'C:\Users\jacaz_000\Downloads\PKLot\PKLotSegmented'
-root = r'../PKLot/PKLotSegmented2'
+root = r'/Users/martina/Documents/Uni/USA/Stanford/2.Quarter/CNN/Finalproject/PKLot/PKLotSegmented2'
 add_prob = 1.0 # Change this to add fewer files
 
 total_images = 0 
@@ -73,7 +73,6 @@ with h5py.File(fname, 'w') as hf:
 
         # Get metadata of current folder
         tags = path.split(os.path.sep)
-
         occupied = tags[-1]
     #     date = tags[-2]
         weather = tags[-3]

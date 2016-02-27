@@ -12,7 +12,6 @@ require 'optim' -- for various trainer methods
 require 'image'
 require 'pl'
 read_data = require("read_data")
-
 -------------------- Parameters for network --------------------------
 
 local cmd = torch.CmdLine()
@@ -23,6 +22,7 @@ cmd:option('-num_epochs', 25)
 cmd:option('-opt_method', 'sgd')
 cmd:option('-lr_decay_every', 5)
 cmd:option('-lr_decay_factor', 0.5)
+cmd:option('-batch_size', 25)
 
 -- Output options
 cmd:option('-print_every', 1)
@@ -49,8 +49,19 @@ cmd:option('-gpu', 0)
 -- TODO: Load the data.
 cmd:option('-path', '/Users/martina/Documents/Uni/USA/Stanford/2.Quarter/CNN/Finalproject/PKLot')
 --local data_dir = '/home/jordan/Documents/PKLot'
-
+cmd:option('-h5_file', '/Users/martina/Documents/Uni/USA/Stanford/2.Quarter/CNN/Finalproject/parking-lot-net/pklot.hdf5')
 local params = cmd:parse(arg)
+
+
+require 'DataLoader'
+--dataReader = require("dataReader")
+local loader = DataLoader{h5_file = params.h5_file}
+
+NUM_TRAIN = 100
+NUM_TEST = 100
+--trainset, testset = read_data.get_train_test_sets(NUM_TRAIN, NUM_TEST, params.path)
+--print(#trainset.label)
+-- for k,v in ipairs(trainset.label) do print(v) end
 
 if params.gpu > 0 then  
   require 'cunn';
@@ -59,25 +70,19 @@ if params.gpu > 0 then
   trainset.data = trainset.data:cuda()
 end
 
-NUM_TRAIN = 100
-NUM_TEST = 100
-trainset, testset = read_data.get_train_test_sets(NUM_TRAIN, NUM_TEST, params.path)
---print(#trainset.label)
--- for k,v in ipairs(trainset.label) do print(v) end
-
 -- Add index operator for trainset
-setmetatable(trainset, 
+--[[setmetatable(trainset, 
     {__index = function(t, i) 
                     return {t.data[i], t.label[i]} 
                 end}
-);
+);--]]
 
-trainset.data = trainset.data:double() -- convert the data from a ByteTensor to a DoubleTensor.
+--trainset.data = trainset.data:double() -- convert the data from a ByteTensor to a DoubleTensor.
 
  
-function trainset:size() 
+--[[function trainset:size() 
     return self.data:size(1) 
-end
+end--]]
 
 --print(trainset[33][1]:size())
 
@@ -121,7 +126,7 @@ net:add(nn.LogSoftMax())
 criterion = nn.ClassNLLCriterion()
 
 -- Preprocessing of the data
-mean = {} -- store the mean, to normalize the test set in the future
+--[[mean = {} -- store the mean, to normalize the test set in the future
 stdv  = {} -- store the standard-deviation for the future
 for i=1,input_channels do -- over each image channel
     mean[i] = trainset.data[{ {}, {i}, {}, {}  }]:mean() -- mean estimation
@@ -133,7 +138,7 @@ for i=1,input_channels do -- over each image channel
     -- stdv[i] = trainset.data[{ {}, {i}, {}, {}  }]:std() -- std estimation
     -- print('Channel ' .. i .. ', Standard Deviation: ' .. stdv[i]) --for debugging
     -- trainset.data[{ {}, {i}, {}, {}  }]:div(stdv[i]) -- std scaling
-end
+end--]]
 
 weights, grad_params = net:getParameters()
 
@@ -143,9 +148,9 @@ local function f(w)
   grad_params:zero()
   
   -- DO TO: get minibatch of data, convert to cuda
-  local x = trainset.data
-  local y = torch.Tensor(trainset.label)
-
+  local x, y = loader:getBatch{batch_size = params.batch_size, split = 'train'}
+  --local x = data.images:double()
+  --local y = data.labels:double()
   local scores = net:forward(x)
   --local scores_view = scores:view(N, -1)
   --local y_view = y:view(N)
