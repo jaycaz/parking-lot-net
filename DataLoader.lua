@@ -66,6 +66,5 @@ function DataLoader:getBatch(opt)
      
     label_batch[i] = self.h5_file:read('/meta_occupied'):partial({ix,ix})
   end
-print(label_batch)
   return img_batch_raw, label_batch
 end

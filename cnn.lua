@@ -67,7 +67,7 @@ if params.gpu > 0 then
   require 'cunn';
   net = net:cuda()
   criterion = criterion:cuda()
-  trainset.data = trainset.data:cuda()
+  --trainset.data = trainset.data:cuda()
 end
 
 -- Add index operator for trainset
@@ -149,6 +149,10 @@ local function f(w)
   
   -- DO TO: get minibatch of data, convert to cuda
   local x, y = loader:getBatch{batch_size = params.batch_size, split = 'train'}
+  if params.gpu > 0 then
+    x = x:cuda()
+    y = y:cuda()
+  end
   --local x = data.images:double()
   --local y = data.labels:double()
   local scores = net:forward(x)
