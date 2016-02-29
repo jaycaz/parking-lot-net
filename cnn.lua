@@ -57,8 +57,8 @@ require 'DataLoader'
 --dataReader = require("dataReader")
 local loader = DataLoader{h5_file = params.h5_file}
 
-NUM_TRAIN = 100
-NUM_TEST = 100
+NUM_TRAIN = loader:getTrainSize()
+NUM_TEST = loader:getTestSize()
 --trainset, testset = read_data.get_train_test_sets(NUM_TRAIN, NUM_TEST, params.path)
 --print(#trainset.label)
 -- for k,v in ipairs(trainset.label) do print(v) end

@@ -38,6 +38,18 @@ function DataLoader:__init(opt)
   end
 end
 
+function DataLoader:getTrainSize()
+  return self.split_ix['train']:size()[1]
+end
+
+function DataLoader:getTestSize()
+  return self.split_ix['test']:size()[1]
+end
+
+function DataLoader:getValSize()
+  return self.split_ix['val']:size()[1]
+end
+
 -- function for minibatch read in
 function DataLoader:getBatch(opt)
   local split = opt.split -- lets require that user passes this in, for safety
