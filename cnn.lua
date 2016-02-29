@@ -1,7 +1,9 @@
 ----------------------------------------------------------------------
 -- CNN implementation using torch.
 --
---
+-- Used https://github.com/torch/demos/blob/master/train-a-digit-classifier/train-on-mnist.lua and
+-- https://github.com/jcjohnson/torch-rnn/blob/master/train.lua as example code
+-- 
 -- Martina Marek
 ----------------------------------------------------------------------
 
@@ -22,6 +24,7 @@ cmd:option('-num_epochs', 25)
 cmd:option('-opt_method', 'sgd')
 cmd:option('-lr_decay_every', 5)
 cmd:option('-lr_decay_factor', 0.5)
+cmd:option('-momentum', 0.9)
 cmd:option('-batch_size', 25)
 
 -- Output options
@@ -173,12 +176,12 @@ confusion = optim.ConfusionMatrix(classes)
 
 
 -- train the network
-if params.opt_method == 'sgd' then
+--[[if params.opt_method == 'sgd' then
   trainer = nn.StochasticGradient(net, criterion)
   trainer.learningRate = params.learning_rate
   trainer.maxIteration = params.num_epochs
-  trainer:train(trainset)
-elseif params.opt_method == 'adam' then
+  trainer:train(trainset)--]]
+if true then  
   local optim_config = {learningRate = params.learning_rate}
   local num_iterations = params.num_epochs * NUM_TRAIN 
   
@@ -192,7 +195,24 @@ elseif params.opt_method == 'adam' then
     end
 
     -- update step
-    local _, loss = optim.adam(f, weights, optim_config)
+    local loss = 0
+    if params.opt_method == 'sgd' then
+      optim_sgd = optim_sgd or {
+            learningRate = params.learning_rate,
+            momentum = params.momentum,
+            learningRateDecay = params.lr_decay_factor
+         }
+      _, loss = optim.sgd(f, weights, optim_sgd)
+    elseif params.opt_method == 'adam' then
+      optim_adam = optim_adam or {
+            learningRate = params.learning_rate,
+            learningRateDecay = params.lr_decay_factor
+         }
+      _, loss = optim.adam(f, weights, optim_adam)
+    else
+      print('Unkown update method.')
+    end
+
     table.insert(train_loss_history, loss[1])
 
     -- update confusion
