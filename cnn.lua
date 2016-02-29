@@ -197,6 +197,7 @@ if true then
     -- update step
     local loss = 0
     if params.opt_method == 'sgd' then
+      print(optim_sgd.learningRate)
       optim_sgd = optim_sgd or {
             learningRate = params.learning_rate,
             momentum = params.momentum,
