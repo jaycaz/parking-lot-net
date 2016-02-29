@@ -176,59 +176,63 @@ confusion = optim.ConfusionMatrix(classes)
 
 
 -- train the network
---[[if params.opt_method == 'sgd' then
-  trainer = nn.StochasticGradient(net, criterion)
-  trainer.learningRate = params.learning_rate
-  trainer.maxIteration = params.num_epochs
-  trainer:train(trainset)--]]
-if true then  
   local optim_config = {learningRate = params.learning_rate}
   local num_iterations = params.num_epochs * NUM_TRAIN 
   
-  for i = 1, num_iterations do
-    local epoch = math.floor(i / NUM_TRAIN) + 1
+for i = 1, num_iterations do
+  local epoch = math.floor(i / NUM_TRAIN) + 1
     
-    -- Maybe decay learning rate
-    if epoch % params.lr_decay_every == 0 then
-      local old_lr = optim_config.learningRate
-      optim_config = {learningRate = old_lr * params.lr_decay_factor}
-    end
-
-    -- update step
-    local loss = 0
+  -- Maybe decay learning rate
+  if epoch % params.lr_decay_every == 0 then
+    local old_lr 
     if params.opt_method == 'sgd' then
-      print(optim_sgd.learningRate)
-      optim_sgd = optim_sgd or {
-            learningRate = params.learning_rate,
-            momentum = params.momentum,
-            learningRateDecay = params.lr_decay_factor
-         }
-      _, loss = optim.sgd(f, weights, optim_sgd)
+      old_lr = optim_sgd.learningRate
     elseif params.opt_method == 'adam' then
-      optim_adam = optim_adam or {
-            learningRate = params.learning_rate,
-            learningRateDecay = params.lr_decay_factor
-         }
-      _, loss = optim.adam(f, weights, optim_adam)
-    else
-      print('Unkown update method.')
+      old_lr = optim_adam.learningRate
     end
-
-    table.insert(train_loss_history, loss[1])
-
-    -- update confusion
-    --confusion:add(output, targets[i])
-    --local trainAccuracy = confusion.totalValid * 100
-    --confusion:zero()
-
-    -- print
-    if params.print_every > 0 and i % params.print_every == 0 then
-      local float_epoch = i / NUM_TRAIN + 1
-      local msg = 'Epoch %.2f / %d, i = %d / %d, loss = %f'
-      local args = {msg, float_epoch, params.num_epochs, i, num_iterations, loss[1]}
-      print(string.format(unpack(args)))
-    end
-  
-    weights, grad_params = net:getParameters()
+    new_lr = old_lr * params.lr_decay_factor
   end
+
+  -- update step
+  local loss = 0
+  if params.opt_method == 'sgd' then
+    optim_sgd = optim_sgd or {
+          learningRate = params.learning_rate,
+          momentum = params.momentum,
+          learningRateDecay = params.lr_decay_factor
+       }
+    if new_lr ~= nil then
+      optim_sgd.learningRate = new_lr
+    end
+    print(optim_sgd.learningRate)
+    _, loss = optim.sgd(f, weights, optim_sgd)
+  elseif params.opt_method == 'adam' then
+    optim_adam = optim_adam or {
+          learningRate = params.learning_rate,
+          learningRateDecay = params.lr_decay_factor
+       }
+    if new_lr ~= nil then
+      optim_sgd.learningRate = new_lr
+    end
+    _, loss = optim.adam(f, weights, optim_adam)
+  else
+    print('Unkown update method.')
+  end
+
+  table.insert(train_loss_history, loss[1])
+
+  -- update confusion
+  --confusion:add(output, targets[i])
+  --local trainAccuracy = confusion.totalValid * 100
+  --confusion:zero()
+
+  -- print
+  if params.print_every > 0 and i % params.print_every == 0 then
+    local float_epoch = i / NUM_TRAIN + 1
+    local msg = 'Epoch %.2f / %d, i = %d / %d, loss = %f'
+    local args = {msg, float_epoch, params.num_epochs, i, num_iterations, loss[1]}
+    print(string.format(unpack(args)))
+  end
+  
+  weights, grad_params = net:getParameters()
 end
