@@ -25,7 +25,8 @@ LOT_SET = set(LOT)
 
 # User defined variables here
 #root = r'C:\Users\jacaz_000\Downloads\PKLot\PKLotSegmented'
-root = r'/Users/martina/Documents/Uni/USA/Stanford/2.Quarter/CNN/Finalproject/PKLot/PKLotSegmented2'
+#root = r'/Users/martina/Documents/Uni/USA/Stanford/2.Quarter/CNN/Finalproject/PKLot/PKLotSegmented2'
+root = r'/home/jordan/Documents/PKLot/PKLotSegmented'
 add_prob = 1.0 # Change this to add fewer files
 
 total_images = 0 
@@ -91,7 +92,7 @@ with h5py.File(fname, 'w') as hf:
               time = f[f.find('_') + 1: f.find('#')]
               hour, minute, second = tuple(time.split('_'))
 
-              space = int(f[f.find('#') + 1:f.find('.')])
+              space = int(f[f.find('#') + 1:f.find('#') + 4])
 
               # Extract image data, resize and add to file
               im = Image.open(os.path.join(path, f))
