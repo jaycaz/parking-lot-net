@@ -106,21 +106,6 @@ net:add(nn.LogSoftMax())
 -- Add a negative log-likelihood criterion for multi-class classification
 criterion = nn.ClassNLLCriterion()
 
--- Preprocessing of the data
---[[mean = {} -- store the mean, to normalize the test set in the future
-stdv  = {} -- store the standard-deviation for the future
-for i=1,input_channels do -- over each image channel
-    mean[i] = trainset.data[{ {}, {i}, {}, {}  }]:mean() -- mean estimation
-    print('Channel ' .. i .. ', Mean: ' .. mean[i]) -- for debugging
-    trainset.data[{ {}, {i}, {}, {}  }]:add(-mean[i]) -- mean subtraction
-    
-    -- Maybe not necessary according to Andrey - we can figure out what works best in the end, but I think in the
-    -- assigments we did not subtract the std
-    -- stdv[i] = trainset.data[{ {}, {i}, {}, {}  }]:std() -- std estimation
-    -- print('Channel ' .. i .. ', Standard Deviation: ' .. stdv[i]) --for debugging
-    -- trainset.data[{ {}, {i}, {}, {}  }]:div(stdv[i]) -- std scaling
-end--]]
-
 weights, grad_params = net:getParameters()
 
 -- function for the optim methods
