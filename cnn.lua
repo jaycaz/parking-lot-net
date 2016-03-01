@@ -34,14 +34,13 @@ cmd:option('-print_every', 1)
 fc_layers = {120, 50, 10} -- number of nodes in each fully connected layers (output layer is added additionally)
 conv_layers = {10, 20} -- number of nodes in each convolutional layer
 cmd:option('-filter_size', 5)
-cmd:option('-pad', 2)
-cmd:option('-stride', 1)
 cmd:option('-pool_size', 2)
+local stride = 1
 
 -- class 0 means empty parking spot, 1 means occupied spot
 classes = {'Empty', 'Occupied'}
 
-input_channels = 3
+local input_channels = 3
 local IMG_WIDTH = 48
 local IMG_HEIGHT = 64
 
@@ -72,14 +71,16 @@ end
 
 net = nn.Sequential()
 
+local pad = (params.filter_size - 1)/2
+
 -- Adding first layer
-net:add(nn.SpatialConvolution(input_channels, conv_layers[1], params.filter_size, params.filter_size, params.stride, params.stride, params.pad, params.pad))  
+net:add(nn.SpatialConvolution(input_channels, conv_layers[1], params.filter_size, params.filter_size, stride, stride, pad, pad))  
 net:add(nn.ReLU())                       
 net:add(nn.SpatialMaxPooling(params.pool_size,params.pool_size,params.pool_size,params.pool_size))     
 
 -- adding rest of conv layers
 for i=2,#conv_layers do
-  net:add(nn.SpatialConvolution(conv_layers[i - 1], conv_layers[i], params.filter_size, params.filter_size, params.stride, params.stride, params.pad, params.pad))
+  net:add(nn.SpatialConvolution(conv_layers[i - 1], conv_layers[i], params.filter_size, params.filter_size, stride, stride, pad, pad))
   net:add(nn.ReLU())                       
   net:add(nn.SpatialMaxPooling(params.pool_size,params.pool_size,params.pool_size,params.pool_size))
 end
