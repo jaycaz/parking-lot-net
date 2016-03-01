@@ -24,17 +24,34 @@ function DataLoader:__init(opt)
   
   -- separate out indexes for each of the provided splits
   self.split_ix = {}
-  self.split_ix['train'] = torch.randperm(torch.floor(self.num_images * 0.7)+1) --add one, since all values are floored to match number of images
+  self.split_ix['train'] = torch.randperm(torch.floor(self.num_images * 0.7))
   local offset = self.split_ix['train']:size()[1]
   self.split_ix['val'] = torch.randperm(torch.floor(self.num_images * 0.2)) + offset
   offset = offset + self.split_ix['val']:size()[1]
-  self.split_ix['test'] = torch.randperm(torch.floor(self.num_images * 0.1)) + offset
+  self.split_ix['test'] = torch.randperm(torch.floor(self.num_images - offset)) + offset
   assert((self.split_ix['train']:size()[1] + self.split_ix['val']:size()[1] + self.split_ix['test']:size()[1]) == self.num_images, 'number of images in train/val/test do not match number of images')
   self.iterators = {}
   
   for k,v in pairs(self.split_ix) do
     self.iterators[k] = 1
     print(string.format('assigned %d images to split %s', v:size()[1], k))
+  end
+
+  training_size = self.split_ix['train']:size()[1]
+  trainset = torch.zeros(training_size, self.num_channels, self.height, self.width)
+  -- preprocessing: subtract the mean for each channel
+  for i=1,training_size do
+    ix = self.split_ix['train'][i]
+    local img = self.h5_file:read('/data'):partial({ix,ix},{1,self.num_channels},
+                            {1,self.height},{1,self.width})
+    trainset[i] = img
+  end
+
+  self.mean = {}
+  for i=1,self.num_channels do
+    self.mean[i] = trainset[{ {}, {i}, {}, {}  }]:mean() -- mean estimation
+    print('Channel ' .. i .. ', Mean: ' .. self.mean[i])
+
   end
 end
 
@@ -78,5 +95,11 @@ function DataLoader:getBatch(opt)
      
     label_batch[i] = self.h5_file:read('/meta_occupied'):partial({ix,ix})
   end
+
+  -- subtract mean
+  for i=1,self.num_channels do
+    img_batch_raw[{ {}, {i}, {}, {}  }]:add(-self.mean[i]) -- mean subtraction
+  end
+
   return img_batch_raw, label_batch
 end

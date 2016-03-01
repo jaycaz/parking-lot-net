@@ -33,11 +33,10 @@ cmd:option('-print_every', 1)
 -- network architecture
 fc_layers = {120, 50, 10} -- number of nodes in each fully connected layers (output layer is added additionally)
 conv_layers = {10, 20} -- number of nodes in each convolutional layer
-filter_size = 5 -- filter size for convolutional layers
-pad = 2
-stride = 1
-pool_size = 2
-
+cmd:option('-filter_size', 5)
+cmd:option('-pad', 2)
+cmd:option('-stride', 1)
+cmd:option('-pool_size', 2)
 
 -- class 0 means empty parking spot, 1 means occupied spot
 classes = {'Empty', 'Occupied'}
@@ -57,56 +56,35 @@ local params = cmd:parse(arg)
 
 
 require 'DataLoader'
---dataReader = require("dataReader")
 local loader = DataLoader{h5_file = params.h5_file}
 
 NUM_TRAIN = loader:getTrainSize()
 NUM_TEST = loader:getTestSize()
---trainset, testset = read_data.get_train_test_sets(NUM_TRAIN, NUM_TEST, params.path)
---print(#trainset.label)
--- for k,v in ipairs(trainset.label) do print(v) end
 
 if params.gpu > 0 then  
   require 'cunn';
   net = net:cuda()
   criterion = criterion:cuda()
-  --trainset.data = trainset.data:cuda()
 end
 
--- Add index operator for trainset
---[[setmetatable(trainset, 
-    {__index = function(t, i) 
-                    return {t.data[i], t.label[i]} 
-                end}
-);--]]
-
---trainset.data = trainset.data:double() -- convert the data from a ByteTensor to a DoubleTensor.
-
- 
---[[function trainset:size() 
-    return self.data:size(1) 
-end--]]
-
---print(trainset[33][1]:size())
 
 -------------------- Set up of network ------------------------------
 
 net = nn.Sequential()
 
 -- Adding first layer
-net:add(nn.SpatialConvolution(input_channels, conv_layers[1], filter_size, filter_size, stride, stride, pad, pad))  
+net:add(nn.SpatialConvolution(input_channels, conv_layers[1], params.filter_size, params.filter_size, params.stride, params.stride, params.pad, params.pad))  
 net:add(nn.ReLU())                       
-net:add(nn.SpatialMaxPooling(pool_size,pool_size,pool_size,pool_size))     
+net:add(nn.SpatialMaxPooling(params.pool_size,params.pool_size,params.pool_size,params.pool_size))     
 
 -- adding rest of conv layers
 for i=2,#conv_layers do
-  net:add(nn.SpatialConvolution(conv_layers[i - 1], conv_layers[i], filter_size, filter_size, stride, stride, pad, pad))
+  net:add(nn.SpatialConvolution(conv_layers[i - 1], conv_layers[i], params.filter_size, params.filter_size, params.stride, params.stride, params.pad, params.pad))
   net:add(nn.ReLU())                       
-  net:add(nn.SpatialMaxPooling(pool_size,pool_size,pool_size,pool_size))
+  net:add(nn.SpatialMaxPooling(params.pool_size,params.pool_size,params.pool_size,params.pool_size))
 end
 
 -- Start of fully-connected part: 
--- TODO: Not hardcode image size
 local pow = #conv_layers
 local fcin = {conv_layers[#conv_layers], IMG_HEIGHT/(math.pow(2, pow)), IMG_WIDTH/(math.pow(2, pow))}
 local fcinprod = torch.prod(torch.Tensor(fcin))
