@@ -6,7 +6,17 @@ local stats = {}
 -- based on groud truth labels <labels>
 function stats.acc(model, data, labels)
 
-  scores = model:forward(data)
+  local score0 = model:forward(data[1])
+
+  local num_data = data:size(1)
+  local num_labels = score0:size(1)
+
+  scores = torch.Tensor(num_data, num_labels)
+
+  for i = 1, data:size(1) do
+    scores[i] = model:forward(data[i])
+  end
+
   maxs, indices = torch.max(scores, 2)
 
   --print(maxs:size())
