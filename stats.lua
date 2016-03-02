@@ -19,7 +19,7 @@ function stats.acc(model, data, labels)
   local i = 1
   while i < data_size do
     b = math.min(BATCH_SIZE, data_size - i)
-    print(data[{{i,i+b}}]:size())
+    --print(data[{{i,i+b}}]:size())
     scores[{{i,i+b}}] = model:forward(data[{{i,i+b}}])
     i = i+b
   end
