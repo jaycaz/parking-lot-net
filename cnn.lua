@@ -31,10 +31,10 @@ cmd:option('-batch_size', 25)
 cmd:option('-print_every', 1)
 
 -- network architecture
-fc_layers = {120, 50, 10} -- number of nodes in each fully connected layers (output layer is added additionally)
-conv_layers = {10, 20} -- number of nodes in each convolutional layer
 cmd:option('-filter_size', 5)
 cmd:option('-pool_size', 2)
+cmd:option('-conv_layers', "10, 20, 30")
+cmd:option('-fc_layers', "10, 20, 30")
 local stride = 1
 
 -- class 0 means empty parking spot, 1 means occupied spot
@@ -53,6 +53,16 @@ cmd:option('-path', '/Users/martina/Documents/Uni/USA/Stanford/2.Quarter/CNN/Fin
 cmd:option('-h5_file', '/Users/martina/Documents/Uni/USA/Stanford/2.Quarter/CNN/Finalproject/parking-lot-net/pklot.hdf5')
 local params = cmd:parse(arg)
 
+function string:split(sep)
+        local sep, fields = sep or ":", {}
+        local pattern = string.format("([^%s]+)", sep)
+        self:gsub(pattern, function(c) fields[#fields+1] = tonumber(c) end)
+        return fields
+end
+
+
+conv_layers = params.conv_layers:split(", ")
+fc_layers = params.fc_layers:split(", ")
 
 require 'DataLoader'
 local loader = DataLoader{h5_file = params.h5_file}
@@ -69,6 +79,7 @@ end
 
 -------------------- Set up of network ------------------------------
 
+assert(#conv_layers < 5, 'ConvNet cannot have more than 4 convolutional layers - image size too small!')
 net = nn.Sequential()
 
 local pad = (params.filter_size - 1)/2
