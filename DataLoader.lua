@@ -37,19 +37,33 @@ function DataLoader:__init(opt)
     print(string.format('assigned %d images to split %s', v:size()[1], k))
   end
 
-  training_size = self.split_ix['train']:size()[1]
-  trainset = torch.zeros(training_size, self.num_channels, self.height, self.width)
+  local training_size = self.split_ix['train']:size()[1]
+  local batch_size = 1000
   -- preprocessing: subtract the mean for each channel
-  for i=1,training_size do
-    ix = self.split_ix['train'][i]
-    local img = self.h5_file:read('/data'):partial({ix,ix},{1,self.num_channels},
+  local mean = {}
+  for i=1,training_size,batch_size do
+    local batch_num_it = 0
+    if (i + batch_size) > training_size then
+      batch_num_it = training_size - i
+    else
+      batch_num_it = batch_size
+    end
+    local imgs = torch.zeros(batch_num_it, self.num_channels, self.height, self.width)
+    for j=1,batch_num_it do
+      ix = self.split_ix['train'][i+j]
+      local img = self.h5_file:read('/data'):partial({ix,ix},{1,self.num_channels},
                             {1,self.height},{1,self.width})
-    trainset[i] = img
+      imgs[j] = img
+    end
+    for j=1,self.num_channels do
+      if mean[j] == nil then mean[j] = 0 end
+      mean[j] = mean[j] + batch_num_it * imgs[{ {}, {j}, {}, {}  }]:mean() -- mean estimation
+    end
   end
 
   self.mean = {}
   for i=1,self.num_channels do
-    self.mean[i] = trainset[{ {}, {i}, {}, {}  }]:mean() -- mean estimation
+    self.mean[i] = mean[i] / training_size -- mean estimation
     print('Channel ' .. i .. ', Mean: ' .. self.mean[i])
 
   end
