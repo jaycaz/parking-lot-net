@@ -1,4 +1,5 @@
 require 'torch'
+require 'math'
 
 local stats = {}
 
@@ -6,31 +7,28 @@ local stats = {}
 -- based on groud truth labels <labels>
 function stats.acc(model, data, labels)
 
+  local BATCH_SIZE = 1000
   local score0 = model:forward(data[1])
 
-  local num_data = data:size(1)
+  local data_size = data:size(1)
   local num_labels = score0:size(1)
 
-  scores = torch.Tensor(num_data, num_labels)
+  scores = torch.Tensor(data_size, num_labels)
 
-  for i = 1, data:size(1) do
-    scores[i] = model:forward(data[i])
+  -- Process data in batches
+  local i = 1
+  while i < data_size do
+    b = math.min(BATCH_SIZE, data_size - i)
+    print(data[{{i,i+b}}]:size())
+    scores[{{i,i+b}}] = model:forward(data[{{i,i+b}}])
+    i = i+b
   end
 
+  -- Find number of generated labels that match ground truth labels
   maxs, indices = torch.max(scores, 2)
 
-  --print(maxs:size())
-  --print(labels:size())
-
-  --print(indices)
-  --print(labels)
-
-  --print(torch.eq(indices, labels:long()))
   local correct = torch.sum(torch.eq(indices, labels:long()))
-  --print(correct)
-
   local num_labels = labels:size()[1]
-
   return correct / num_labels
 
 end
