@@ -21,17 +21,70 @@ function DataLoader:__init(opt)
   self.width = images_size[4]
   print(string.format('read %d images of size %dx%dx%d', self.num_images, 
             self.num_channels, self.height, self.width))
-  
-  -- separate out indexes for each of the provided splits
+
   self.split_ix = {}
-  self.split_ix['train'] = torch.randperm(torch.floor(self.num_images * 0.7))
-  local offset = self.split_ix['train']:size()[1]
-  self.split_ix['val'] = torch.randperm(torch.floor(self.num_images * 0.2)) + offset
-  offset = offset + self.split_ix['val']:size()[1]
-  self.split_ix['test'] = torch.randperm(torch.floor(self.num_images - offset)) + offset
-  assert((self.split_ix['train']:size()[1] + self.split_ix['val']:size()[1] + self.split_ix['test']:size()[1]) == self.num_images, 'number of images in train/val/test do not match number of images')
-  self.iterators = {}
+  if opt.weather_cond1 == 'nil' then 
+    -- separate out indexes for each of the provided splits
+    self.split_ix['train'] = torch.randperm(torch.floor(self.num_images * 0.7))
+    local offset = self.split_ix['train']:size()[1]
+    self.split_ix['val'] = torch.randperm(torch.floor(self.num_images * 0.2)) + offset
+    offset = offset + self.split_ix['val']:size()[1]
+    self.split_ix['test'] = torch.randperm(torch.floor(self.num_images - offset)) + offset
+    assert((self.split_ix['train']:size()[1] + self.split_ix['val']:size()[1] + self.split_ix['test']:size()[1]) == self.num_images, 'number of images in train/val/test do not match number of images')
+  else
+    local cond_no1, cond_no2 = resolve_weather_cond(opt.weather_cond1, opt.weather_cond2)
+    count_cond1 = 0
+    count_cond2 = 0
+    for i=1,self.num_images do
+      cond = self.h5_file:read('/meta_weather'):partial({i,i})[1]
+      if cond == cond_no1 then
+        count_cond1 = count_cond1 + 1
+      end
+      if cond == cond_no2 then
+        count_cond2 = count_cond2 + 1
+      end
+    end
+    print(opt.weather_cond1, count_cond1, opt.weather_cond2, count_cond2)
+    count = {count_cond1, torch.floor(count_cond2 * 0.7), count_cond2 - torch.floor(count_cond2 * 0.7)}
+    local split = {}
+    split['train'] = torch.zeros(count[1])
+    split['val'] = torch.zeros(count[2])
+    split['test'] = torch.zeros(count[3])
+    
+    local idx_train = 0
+    local idx_val = 0
+    local idx_test = 0
+    for i=1,self.num_images do
+      cond = self.h5_file:read('/meta_weather'):partial({i,i})[1]
+      if cond == cond_no1 then
+        idx_train = idx_train + 1
+        split['train'][idx_train] = i
+      end
+      if cond == cond_no2 then
+        if idx_val < split['val']:size()[1] then
+          idx_val = idx_val + 1
+          split['val'][idx_val] = i
+        else    
+          idx_test = idx_test + 1
+          split['test'][idx_test] = i
+        end
+      end
+    end
+    
+    sets = {'train', 'val', 'test'}
+    for i=1,#sets do
+      self.split_ix[sets[i]] = torch.zeros(count[i])
+      local perm = torch.randperm(count[i])
+      for j=1,count[i] do
+        self.split_ix[sets[i]][j] = split[sets[i]][perm[j]]
+      end
+    end
+  end
   
+  --print(self.split_ix['train']:size()[1], self.split_ix['val']:size()[1], self.split_ix['test']:size()[1])
+  --print(torch.max(self.split_ix['train']))
+  
+  self.iterators = {}  
   for k,v in pairs(self.split_ix) do
     self.iterators[k] = 1
     print(string.format('assigned %d images to split %s', v:size()[1], k))
@@ -65,7 +118,6 @@ function DataLoader:__init(opt)
   for i=1,self.num_channels do
     self.mean[i] = mean[i] / training_size -- mean estimation
     print('Channel ' .. i .. ', Mean: ' .. self.mean[i])
-
   end
 end
 
@@ -116,4 +168,26 @@ function DataLoader:getBatch(opt)
   end
 
   return img_batch_raw, label_batch
+end
+
+
+function resolve_weather_cond(cond1, cond2) 
+  local no1 = 0
+  local no2 = 0
+  if cond1 == 'sunny' then
+    no1 = 1
+  elseif cond1 == 'cloudy' then
+    no1 = 2
+  elseif cond1 == 'rainy' then
+    no1 = 3
+  end
+  if cond2 == 'sunny' then
+    no2 = 1
+  elseif cond2 == 'cloudy' then
+    no2 = 2
+  elseif cond2 == 'rainy' then
+    no2 = 3
+  end
+  assert(no1 ~= 0 and no2 ~= 0, 'Weather conditions could not be resolved to labels')
+  return no1, no2
 end
