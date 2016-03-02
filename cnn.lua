@@ -70,11 +70,6 @@ local loader = DataLoader{h5_file = params.h5_file}
 NUM_TRAIN = loader:getTrainSize()
 NUM_TEST = loader:getTestSize()
 
-if params.gpu > 0 then  
-  require 'cunn';
-  net = net:cuda()
-  criterion = criterion:cuda()
-end
 
 
 -------------------- Set up of network ------------------------------
@@ -118,7 +113,16 @@ net:add(nn.LogSoftMax())
 -- Add a negative log-likelihood criterion for multi-class classification
 criterion = nn.ClassNLLCriterion()
 
+-- If GPU, convert to CudaTensors
+if params.gpu > 0 then  
+  require 'cunn';
+  require 'cutorch';
+  net = net:cuda()
+  criterion = criterion:cuda()
+end
+
 weights, grad_params = net:getParameters()
+
 
 -- function for the optim methods
 local function f(w)
