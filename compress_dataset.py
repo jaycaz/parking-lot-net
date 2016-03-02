@@ -33,6 +33,9 @@ OCCUPIED_SET = set(OCCUPIED)
 LOT = ['PUC', 'UFPR04', 'UFPR05']
 LOT_SET = set(LOT)
 
+# Parameters for statistics
+stats = {'Sunny': 0, 'Cloudy': 0, 'Rainy': 0, 'Empty': 0, 'Occupied': 0}
+
 # User defined variables here
 #root = r'C:\Users\jacaz_000\Downloads\PKLot\PKLotSegmented'
 #root = r'/Users/martina/Documents/Uni/USA/Stanford/2.Quarter/CNN/Finalproject/PKLot/PKLotSegmented2'
@@ -126,7 +129,9 @@ with h5py.File(params['h5_name'], 'w') as hf:
               space_dset[i] = space
 
               occupied_dset[i] = OCCUPIED.index(occupied) + 1
+              stats[occupied] += 1
               weather_dset[i] = WEATHER.index(weather) + 1       
+              stats[weather] += 1
 
 #               if np.random.sample() < 1e-3:
 #                   print month, day, hour, minute, lot, space, occupied, weather
@@ -150,6 +155,17 @@ with h5py.File(params['h5_name'], 'w') as hf:
             break
 
     hf.close()
+
+    # File statistics
+    print "File successfully created!"
+    print "Some statistics...\n"
+    sys.stdout.flush()
+
+    for i in [OCCUPIED, WEATHER]:
+        for k in i:
+            print "{0}: {1} ({2}%)".format(k, stats[k], 100 * stats[k] / float(image_count))
+        print ""
+
     
     
 #     path_tags = set(params['data_root'].split(os.path.sep))
