@@ -14,6 +14,7 @@ require 'optim' -- for various trainer methods
 require 'image'
 require 'pl'
 read_data = require("read_data")
+stats = require("stats")
 -------------------- Parameters for network --------------------------
 
 local cmd = torch.CmdLine()
@@ -69,7 +70,7 @@ local loader = DataLoader{h5_file = params.h5_file}
 
 NUM_TRAIN = loader:getTrainSize()
 NUM_TEST = loader:getTestSize()
-
+NUM_VAL = loader:getValSize()
 
 
 -------------------- Set up of network ------------------------------
@@ -214,4 +215,14 @@ for i = 1, num_iterations do
   end
   
   weights, grad_params = net:getParameters()
-end
+end -- Finished training
+
+
+-- Print final validation statistics
+print(string.format('Running model on validation set (%d images)...', NUM_VAL))
+
+local val, val_y = loader:getBatch{batch_size = NUM_VAL, split = 'val'}
+local val_acc = stats.acc(net:double(), val:double(), val_y:int())
+
+print(string.format('Val Accuracy: %04f', val_acc))
+
