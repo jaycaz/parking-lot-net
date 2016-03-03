@@ -136,7 +136,7 @@ local function f(w)
   assert(w == weights)
   grad_params:zero()
   
-  -- DO TO: get minibatch of data, convert to cuda
+  -- Get minibatch of data, convert to cuda
   local x, y = loader:getBatch{batch_size = params.batch_size, split = 'train'}
   if params.gpu > 0 then
     x = x:cuda()
@@ -168,17 +168,6 @@ confusion = optim.ConfusionMatrix(classes)
 for i = 1, num_iterations do
   local epoch = math.floor(i / NUM_TRAIN) + 1
     
-  -- Maybe decay learning rate
-  if epoch % params.lr_decay_every == 0 then
-    local old_lr 
-    if params.opt_method == 'sgd' then
-      old_lr = optim_sgd.learningRate
-    elseif params.opt_method == 'adam' then
-      old_lr = optim_adam.learningRate
-    end
-    new_lr = old_lr * params.lr_decay_factor
-  end
-
   -- update step
   local loss = 0
   if params.opt_method == 'sgd' then
@@ -198,7 +187,7 @@ for i = 1, num_iterations do
           learningRateDecay = params.lr_decay_factor
        }
     if new_lr ~= nil then
-      optim_sgd.learningRate = new_lr
+      optim_adam.learningRate = new_lr
     end
     _, loss = optim.adam(f, weights, optim_adam)
   else
@@ -207,6 +196,18 @@ for i = 1, num_iterations do
 
   table.insert(train_loss_history, loss[1])
 
+  -- Maybe decay learning rate
+  if epoch % params.lr_decay_every == 0 then
+    local old_lr 
+    if params.opt_method == 'sgd' then
+      old_lr = optim_sgd.learningRate
+    elseif params.opt_method == 'adam' then
+      old_lr = optim_adam.learningRate
+    end
+    new_lr = old_lr * params.lr_decay_factor
+  end
+
+
   -- update confusion
   --confusion:add(output, targets[i])
   --local trainAccuracy = confusion.totalValid * 100
@@ -214,7 +215,7 @@ for i = 1, num_iterations do
 
   -- print
   if params.print_every > 0 and i % params.print_every == 0 then
-    local float_epoch = i / NUM_TRAIN + 1
+    local float_epoch = i / NUM_TRAIN -- + 1
     local msg = 'Epoch %.2f / %d, i = %d / %d, loss = %f'
     local args = {msg, float_epoch, params.num_epochs, i, num_iterations, loss[1]}
     print(string.format(unpack(args)))
@@ -224,11 +225,21 @@ for i = 1, num_iterations do
 end -- Finished training
 
 
--- Print final validation statistics
+-- Print final train and validation statistics
+print(string.format('Running model on train set (%d images)...', NUM_TRAIN))
+local train, train_y = loader:getBatch{batch_size = NUM_VAL, split = 'train'}
+local train_acc = stats.acc(net:double(), train:double(), train_y:int())
+
+print(string.format('Val Accuracy: %04f', train_acc))
+
 print(string.format('Running model on validation set (%d images)...', NUM_VAL))
 
 local val, val_y = loader:getBatch{batch_size = NUM_VAL, split = 'val'}
 local val_acc = stats.acc(net:double(), val:double(), val_y:int())
 
 print(string.format('Val Accuracy: %04f', val_acc))
+
+print("*Val Acc,Train Acc,Learn Rate,Batch Size,LR Decay Rate,LR Decay Every")
+print(string.format("**%04f,%04f,%04f,%d,%04f,%d", 
+                    val_acc, train_acc, params.learning_rate, params.batch_size, params.lr_decay_factor, params.lr_decay_every))
 
