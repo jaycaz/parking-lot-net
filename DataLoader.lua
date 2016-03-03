@@ -5,7 +5,6 @@ require 'hdf5'
 local DataLoader = torch.class('DataLoader')
 
 
---TO DO: adjust code to our data
 function DataLoader:__init(opt)
 
   -- open the hdf5 file
@@ -21,6 +20,7 @@ function DataLoader:__init(opt)
   self.width = images_size[4]
   print(string.format('read %d images of size %dx%dx%d', self.num_images, 
             self.num_channels, self.height, self.width))
+  self.label_name = opt.labels
 
   self.split_ix = {}
   if opt.weather_cond1 == 'nil' then 
@@ -50,6 +50,8 @@ function DataLoader:__init(opt)
     split['train'] = torch.zeros(count[1])
     split['val'] = torch.zeros(count[2])
     split['test'] = torch.zeros(count[3])
+
+    self.num_images = count[1] + count[2] + count[3]
     
     local idx_train = 0
     local idx_val = 0
@@ -81,6 +83,7 @@ function DataLoader:__init(opt)
     end
   end
   
+  -- for debugging
   --print(self.split_ix['train']:size()[1], self.split_ix['val']:size()[1], self.split_ix['test']:size()[1])
   --print(torch.max(self.split_ix['train']))
   
@@ -159,7 +162,7 @@ function DataLoader:getBatch(opt)
                             {1,self.height},{1,self.width})
     img_batch_raw[i] = img
      
-    label_batch[i] = self.h5_file:read('/meta_occupied'):partial({ix,ix})
+    label_batch[i] = self.h5_file:read('/' .. self.label_name):partial({ix,ix})
   end
 
   -- subtract mean
