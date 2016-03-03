@@ -11,6 +11,7 @@ import numpy as np
 import argparse
 
 from PIL import Image, ImageFilter
+#from count_spots.py import count_spots
 
 parser = argparse.ArgumentParser(description="Compress PKLot dataset into HDF5 file")
 
