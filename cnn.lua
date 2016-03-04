@@ -13,6 +13,7 @@ require 'nn'
 require 'optim' -- for various trainer methods
 require 'image'
 require 'pl'
+require 'os'
 stats = require("stats")
 -------------------- Parameters for network --------------------------
 
@@ -29,6 +30,8 @@ cmd:option('-batch_size', 25)
 
 -- Output options
 cmd:option('-print_every', 1)
+cmd:option('-print_test', 0)
+cmd:option('-save_model', 0)
 
 -- network architecture
 cmd:option('-filter_size', 5)
@@ -231,12 +234,13 @@ print(string.format('Running model on train set (%d images)...', NUM_TRAIN))
 local train, train_y = loader:getBatch{batch_size = NUM_VAL, split = 'train'}
 local train_acc = stats.acc(net:double(), train:double(), train_y:int())
 
-print(string.format('Val Accuracy: %04f', train_acc))
+print(string.format('Train Accuracy: %04f', train_acc))
 
 print(string.format('Running model on validation set (%d images)...', NUM_VAL))
 
 local val, val_y = loader:getBatch{batch_size = NUM_VAL, split = 'val'}
 local val_acc = stats.acc(net:double(), val:double(), val_y:int())
+
 
 print(string.format('Val Accuracy: %04f', val_acc))
 
@@ -244,3 +248,22 @@ print("*Val Acc,Train Acc,Learn Rate,Batch Size,LR Decay Rate,LR Decay Every")
 print(string.format("**%04f,%04f,%04f,%d,%04f,%d", 
                     val_acc, train_acc, params.learning_rate, params.batch_size, params.lr_decay_factor, params.lr_decay_every))
 
+
+-- Optionally, print test statistics
+if params.print_test == 1 then
+  local test, test_y = loader:getBatch{batch_size = NUM_VAL, split = 'test'}
+  local test_acc = stats.acc(net:double(), test:double(), test_y:int())
+
+  print(string.format('Test Accuracy: %04f', test_acc))
+
+  print("*Test Acc,Train Acc,Learn Rate,Batch Size,LR Decay Rate,LR Decay Every")
+  print(string.format("**%04f,%04f,%04f,%d,%04f,%d", 
+                      test_acc, train_acc, params.learning_rate, params.batch_size, params.lr_decay_factor, params.lr_decay_every))
+end
+
+-- Optionally, save model parameters
+if params.save_model == 1 then
+  local model_filename = string.format("model_%d", os.time())
+  torch.save(model_filename, net:float())
+  print(string.format("Model parameters saved to: %s", model_filename))
+end
