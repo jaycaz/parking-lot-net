@@ -263,6 +263,6 @@ end
 -- Optionally, save model parameters
 if params.save_model == 1 then
   local model_filename = string.format("model_%d", os.time())
-  torch.save(model_filename, net:float())
+  torch.save(model_filename, net:double())
   print(string.format("Model parameters saved to: %s", model_filename))
 end
