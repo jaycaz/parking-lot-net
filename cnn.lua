@@ -153,10 +153,9 @@ local function f(w)
   local grad_scores = criterion:backward(scores, y)
   net:backward(x, grad_scores)
 
-  require 'saliencyMaps'
-  local maps = saliencyMaps()
-  maps:compute_map(net, x[1], y[1])  
-  --image.display(x)
+  --require 'saliencyMaps'
+  --local maps = saliencyMaps()
+  --maps:compute_map(net, x[1], y[1])  
   return loss, grad_params
 end
 
