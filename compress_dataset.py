@@ -92,17 +92,24 @@ with h5py.File(params['h5_name'], 'w') as hf:
 
         # Get metadata of current folder
         tags = path.split(os.path.sep)
-        occupied = tags[-1]
-    #     date = tags[-2]
-        weather = tags[-3]
-        lot = tags[-4]
+
+        # Check if we are iterating through spaces dirs or lots dirs
+        if not tags[-1] in OCCUPIED:
+            occupied = OCCUPIED[0]
+            weather = tags[-2]
+            lot = tags[-3]
+        else:
+            occupied = tags[-1]
+        #     date = tags[-2]
+            weather = tags[-3]
+            lot = tags[-4]
 
         # Add image files
         for f in files:
             _, ext = os.path.splitext(f)
 	    if ext == '.jpg':
 
-              print (files)
+              #print (files)
               # Get Date and Time metadata
               date = f[:f.find('_')]
               year, month, day = tuple(date.split('-'))
@@ -130,6 +137,8 @@ with h5py.File(params['h5_name'], 'w') as hf:
               hour_dset[i] = int(hour)
               minute_dset[i] = int(minute)
 
+              #if not lot in LOT:
+                #print "ERROR: lot '{0}' not in list of lot names".format(lot)
               lot_dset[i] = LOT.index(lot) + 1
               space_dset[i] = space
 
@@ -140,7 +149,7 @@ with h5py.File(params['h5_name'], 'w') as hf:
 
               if params['count_spots']:
                   count = count_spots(path + '/' + f[:-3] + 'xml')
-                  print count
+                  #print "At {0}, empty {1}".format(os.path.join(path, f), count)
                   count_dset[i] = count
 
 #               if np.random.sample() < 1e-3:
