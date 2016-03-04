@@ -57,6 +57,9 @@ cmd:option('-gpu', 0)
 cmd:option('-path', '/Users/martina/Documents/Uni/USA/Stanford/2.Quarter/CNN/Finalproject/PKLot')
 --local data_dir = '/home/jordan/Documents/PKLot'
 cmd:option('-h5_file', '/Users/martina/Documents/Uni/USA/Stanford/2.Quarter/CNN/Finalproject/parking-lot-net/pklot.hdf5')
+cmd:option('-labels', 'meta_occupied')
+cmd:option('-max_spots', 0)
+
 local params = cmd:parse(arg)
 
 function string:split(sep)
@@ -72,7 +75,7 @@ fc_layers = params.fc_layers:split(", ")
 
 
 require 'DataLoader'
-local loader = DataLoader{h5_file = params.h5_file, weather_cond1=params.weather_train, weather_cond2=params.weather_test}
+local loader = DataLoader{h5_file = params.h5_file, weather_cond1=params.weather_train, weather_cond2=params.weather_test, labels=params.labels, max_spots=params.max_spots}
 
 NUM_TRAIN = loader:getTrainSize()
 NUM_TEST = loader:getTestSize()

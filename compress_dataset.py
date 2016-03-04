@@ -11,12 +11,14 @@ import numpy as np
 import argparse
 
 from PIL import Image, ImageFilter
+from count_spots import count_spots
 
 parser = argparse.ArgumentParser(description="Compress PKLot dataset into HDF5 file")
 
 parser.add_argument('--data_root', default=r'/home/jordan/Documents/PKLot/PKLotSegmented')
 parser.add_argument('--add_prop', type=float, default=1.0, help='Proportion of images to add to file')
 parser.add_argument('--h5_name', default='pklot.hdf5', help='Name of HDF5 file to create')
+parser.add_argument('--count_spots', action='store_true')
 
 params = vars(parser.parse_args())
 #print params
@@ -80,6 +82,9 @@ with h5py.File(params['h5_name'], 'w') as hf:
     occupied_dset = hf.create_dataset('meta_occupied', (image_count,), dtype='i')
     weather_dset = hf.create_dataset('meta_weather', (image_count,), dtype='i')
 
+    if params['count_spots']:
+        count_dset = hf.create_dataset('meta_count_spots', (image_count,), dtype='i')
+
     i = 0
     for path, dirs, files in os.walk(params['data_root']):
         #if len(files) == 0:
@@ -96,8 +101,8 @@ with h5py.File(params['h5_name'], 'w') as hf:
         for f in files:
             _, ext = os.path.splitext(f)
 	    if ext == '.jpg':
-	      
-       
+
+              print (files)
               # Get Date and Time metadata
               date = f[:f.find('_')]
               year, month, day = tuple(date.split('-'))
@@ -130,8 +135,13 @@ with h5py.File(params['h5_name'], 'w') as hf:
 
               occupied_dset[i] = OCCUPIED.index(occupied) + 1
               stats[occupied] += 1
-              weather_dset[i] = WEATHER.index(weather) + 1       
+              weather_dset[i] = WEATHER.index(weather) + 1
               stats[weather] += 1
+
+              if params['count_spots']:
+                  count = count_spots(path + '/' + f[:-3] + 'xml')
+                  print count
+                  count_dset[i] = count
 
 #               if np.random.sample() < 1e-3:
 #                   print month, day, hour, minute, lot, space, occupied, weather
