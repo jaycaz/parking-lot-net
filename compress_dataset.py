@@ -23,8 +23,13 @@ parser.add_argument('--count_spots', action='store_true')
 params = vars(parser.parse_args())
 #print params
 
-WIDTH = 48
-HEIGHT = 64
+if params['count_spots']:
+    WIDTH = 256
+    HEIGHT = 128
+
+else:
+    WIDTH = 48
+    HEIGHT = 64
 
 WEATHER = ['Sunny', 'Cloudy', 'Rainy']
 WEATHER_SET = set(WEATHER)
@@ -148,6 +153,10 @@ with h5py.File(params['h5_name'], 'w') as hf:
               stats[weather] += 1
 
               if params['count_spots']:
+                  xmlpath = os.path.join(path, f[:-3] + 'xml')
+                  if not os.path.isfile(xmlpath):
+                      print "Warning: could not find file '{0}'".format(xmlpath)
+                      continue
                   count = count_spots(path + '/' + f[:-3] + 'xml')
                   #print "At {0}, empty {1}".format(os.path.join(path, f), count)
                   count_dset[i] = count
