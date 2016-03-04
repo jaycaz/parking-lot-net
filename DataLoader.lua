@@ -21,6 +21,7 @@ function DataLoader:__init(opt)
   print(string.format('read %d images of size %dx%dx%d', self.num_images, 
             self.num_channels, self.height, self.width))
   self.label_name = opt.labels
+  self.max_spots = opt.max_spots
 
   self.split_ix = {}
   if opt.weather_cond1 == 'nil' then 
@@ -162,7 +163,13 @@ function DataLoader:getBatch(opt)
                             {1,self.height},{1,self.width})
     img_batch_raw[i] = img
      
-    label_batch[i] = self.h5_file:read('/' .. self.label_name):partial({ix,ix})
+    label = self.h5_file:read('/' .. self.label_name):partial({ix,ix})
+    if self.max_spots ~= 0 then
+      if label > self.max_spots then
+        label = self.max_spots
+      end
+    end
+    label_batch[i] = label
   end
 
   -- subtract mean
