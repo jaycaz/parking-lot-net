@@ -13,6 +13,7 @@ require 'nn'
 require 'optim' -- for various trainer methods
 require 'image'
 require 'pl'
+require 'os'
 read_data = require("read_data")
 stats = require("stats")
 -------------------- Parameters for network --------------------------
@@ -31,6 +32,7 @@ cmd:option('-batch_size', 25)
 -- Output options
 cmd:option('-print_every', 1)
 cmd:option('-print_test', 0)
+cmd:option('-save_model', 0)
 
 -- network architecture
 cmd:option('-filter_size', 5)
@@ -258,4 +260,11 @@ if params.print_test == 1 then
   print("*Test Acc,Train Acc,Learn Rate,Batch Size,LR Decay Rate,LR Decay Every")
   print(string.format("**%04f,%04f,%04f,%d,%04f,%d", 
                       test_acc, train_acc, params.learning_rate, params.batch_size, params.lr_decay_factor, params.lr_decay_every))
+end
+
+-- Optionally, save model parameters
+if params.save_model == 1 then
+  local model_filename = string.format("model_%d", os.time())
+  torch.save(model_filename, net:float())
+  print(string.format("Model parameters saved to: %s", model_filename))
 end
