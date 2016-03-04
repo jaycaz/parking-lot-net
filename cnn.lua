@@ -13,7 +13,6 @@ require 'nn'
 require 'optim' -- for various trainer methods
 require 'image'
 require 'pl'
-read_data = require("read_data")
 stats = require("stats")
 -------------------- Parameters for network --------------------------
 
@@ -144,17 +143,17 @@ local function f(w)
     x = x:cuda()
     y = y:cuda()
   end
-  --local x = data.images:double()
-  --local y = data.labels:double()
   local scores = net:forward(x)
-  --local scores_view = scores:view(N, -1)
-  --local y_view = y:view(N)
-  --local loss = crit:forward(scores_view, y_view)
-  local loss = criterion:forward(scores, y) --maybe have to reshape scores?!
+  local loss = criterion:forward(scores, y) 
   
   --local grad_scores = criterion:backward(scores_view, y_view):view(N, -1)
   local grad_scores = criterion:backward(scores, y)
   net:backward(x, grad_scores)
+
+  require 'saliencyMaps'
+  local maps = saliencyMaps()
+  maps:compute_map(net, x[1], y[1])  
+  --image.display(x)
   return loss, grad_params
 end
 
