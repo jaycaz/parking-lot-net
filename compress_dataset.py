@@ -42,6 +42,7 @@ LOT_SET = set(LOT)
 
 # Parameters for statistics
 stats = {'Sunny': 0, 'Cloudy': 0, 'Rainy': 0, 'Empty': 0, 'Occupied': 0}
+stats_count_spots = {}
 
 # User defined variables here
 #root = r'C:\Users\jacaz_000\Downloads\PKLot\PKLotSegmented'
@@ -160,6 +161,7 @@ with h5py.File(params['h5_name'], 'w') as hf:
                   count = count_spots(path + '/' + f[:-3] + 'xml')
                   #print "At {0}, empty {1}".format(os.path.join(path, f), count)
                   count_dset[i] = count
+                  stats_count_spots[count] = stats_count_spots.setdefault(count, 0) + 1
 
 #               if np.random.sample() < 1e-3:
 #                   print month, day, hour, minute, lot, space, occupied, weather
@@ -193,6 +195,10 @@ with h5py.File(params['h5_name'], 'w') as hf:
         for k in i:
             print "{0}: {1} ({2}%)".format(k, stats[k], 100 * stats[k] / float(image_count))
         print ""
+
+    if params['count_spots']:
+        for k,v in stats_count_spots.iteritems():
+           print "{0} Spots: {1} ({2}%)".format(k, v, 100 * v / float(image_count))
 
     
     
