@@ -1,6 +1,7 @@
 -- modified from https://github.com/karpathy/neuraltalk2/blob/master/misc/DataLoader.lua
 
 require 'hdf5'
+require 'math'
 
 local DataLoader = torch.class('DataLoader')
 
@@ -36,6 +37,8 @@ function DataLoader:__init(opt)
     local cond_no1, cond_no2 = resolve_weather_cond(opt.weather_cond1, opt.weather_cond2)
     count_cond1 = 0
     count_cond2 = 0
+
+    -- Count images that satisfy cond1 and cond2
     for i=1,self.num_images do
       cond = self.h5_file:read('/meta_weather'):partial({i,i})[1]
       if cond == cond_no1 then
@@ -52,8 +55,7 @@ function DataLoader:__init(opt)
     split['val'] = torch.zeros(count[2])
     split['test'] = torch.zeros(count[3])
 
-    self.num_images = count[1] + count[2] + count[3]
-    
+    -- Mark indices that should be added to each set
     local idx_train = 0
     local idx_val = 0
     local idx_test = 0
@@ -73,8 +75,16 @@ function DataLoader:__init(opt)
         end
       end
     end
+
+    self.num_images = count[1] + count[2] + count[3]
     
     sets = {'train', 'val', 'test'}
+    idxs = {idx_train, idx_val, idx_test}
+
+    assert(idx_train == count[1] and idx_val == count[2] and idx_test == count[3],
+            string.format("Indexes for weather conditions were not counted up correctly:\n(%d, %d, %d) vs. (%d, %d, %d)",
+            count[1], count[2], count[3], idx_train, idx_val, idx_test))
+
     for i=1,#sets do
       self.split_ix[sets[i]] = torch.zeros(count[i])
       local perm = torch.randperm(count[i])
@@ -85,8 +95,8 @@ function DataLoader:__init(opt)
   end
   
   -- for debugging
-  --print(self.split_ix['train']:size()[1], self.split_ix['val']:size()[1], self.split_ix['test']:size()[1])
-  --print(torch.max(self.split_ix['train']))
+  -- print(self.split_ix['train']:size()[1], self.split_ix['val']:size()[1], self.split_ix['test']:size()[1])
+  -- print(torch.max(self.split_ix['train']))
   
   self.iterators = {}  
   for k,v in pairs(self.split_ix) do
@@ -99,12 +109,7 @@ function DataLoader:__init(opt)
   -- preprocessing: subtract the mean for each channel
   local mean = {}
   for i=1,training_size,batch_size do
-    local batch_num_it = 0
-    if (i + batch_size) > training_size then
-      batch_num_it = training_size - i
-    else
-      batch_num_it = batch_size
-    end
+    local batch_num_it = math.min(i + batch_size, training_size - i)
     local imgs = torch.zeros(batch_num_it, self.num_channels, self.height, self.width)
     for j=1,batch_num_it do
       ix = self.split_ix['train'][i+j]
@@ -163,7 +168,7 @@ function DataLoader:getBatch(opt)
                             {1,self.height},{1,self.width})
     img_batch_raw[i] = img
      
-    label = self.h5_file:read('/' .. self.label_name):partial({ix,ix})
+    label = self.h5_file:read('/' .. self.label_name):partial({ix,ix})[1]
     if self.max_spots ~= 0 then
       if label > self.max_spots then
         label = self.max_spots
