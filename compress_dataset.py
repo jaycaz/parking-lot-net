@@ -9,6 +9,7 @@ import os
 import os.path
 import numpy as np
 import argparse
+import time
 
 from PIL import Image, ImageFilter
 from count_spots import count_spots
@@ -19,6 +20,7 @@ parser.add_argument('--data_root', default=r'/home/jordan/Documents/PKLot/PKLotS
 parser.add_argument('--add_prop', type=float, default=1.0, help='Proportion of images to add to file')
 parser.add_argument('--h5_name', default='pklot.hdf5', help='Name of HDF5 file to create')
 parser.add_argument('--count_spots', action='store_true')
+parser.add_argument('--seed', type=int, default=-1)
 
 params = vars(parser.parse_args())
 #print params
@@ -44,12 +46,7 @@ LOT_SET = set(LOT)
 stats = {'Sunny': 0, 'Cloudy': 0, 'Rainy': 0, 'Empty': 0, 'Occupied': 0}
 stats_count_spots = {}
 
-# User defined variables here
-#root = r'C:\Users\jacaz_000\Downloads\PKLot\PKLotSegmented'
-#root = r'/Users/martina/Documents/Uni/USA/Stanford/2.Quarter/CNN/Finalproject/PKLot/PKLotSegmented2'
-#root = r'/home/jordan/Documents/PKLot/PKLotSegmented'
-#add_prob = 1.0 # Change this to add fewer files
-
+# Count all images before traversing directory
 total_images = 0 
 print "Counting images..."
 for path, dirs, files in os.walk(params['data_root']):
@@ -57,6 +54,10 @@ for path, dirs, files in os.walk(params['data_root']):
 print "Image count: ", total_images
 
 
+if params['seed'] < 0:
+    params['seed'] = int(time.time())
+
+np.random.seed(params['seed'])
 image_mask = np.random.binomial(1, params['add_prop'], size=(total_images,))
 image_count = image_mask.sum()
 print "Adding {0} images each with prob. {1} = {2} images".format(total_images, params['add_prop'], image_count)
@@ -91,7 +92,8 @@ with h5py.File(params['h5_name'], 'w') as hf:
     if params['count_spots']:
         count_dset = hf.create_dataset('meta_count_spots', (image_count,), dtype='i')
 
-    i = 0
+    step = 0 # Number of steps through directory
+    img = 0 # Number of images actually added
     for path, dirs, files in os.walk(params['data_root']):
         #if len(files) == 0:
         #    continue
@@ -113,75 +115,74 @@ with h5py.File(params['h5_name'], 'w') as hf:
         # Add image files
         for f in files:
             _, ext = os.path.splitext(f)
-	    if ext == '.jpg':
+            if image_mask[step] == 1 and ext == '.jpg':
+                #print (files)
+                # Get Date and Time metadata
+                date = f[:f.find('_')]
+                year, month, day = tuple(date.split('-'))
 
-              #print (files)
-              # Get Date and Time metadata
-              date = f[:f.find('_')]
-              year, month, day = tuple(date.split('-'))
+                time = f[f.find('_') + 1: f.find('#')]
+                hour, minute, second = tuple(time.split('_'))
 
-              time = f[f.find('_') + 1: f.find('#')]
-              hour, minute, second = tuple(time.split('_'))
+                space = int(f[f.find('#') + 1:f.find('#') + 4])
 
-              space = int(f[f.find('#') + 1:f.find('#') + 4])
+                # Extract image data, resize and add to file
+                im = Image.open(os.path.join(path, f))
+                im = im.resize((WIDTH, HEIGHT), Image.BICUBIC)
 
-              # Extract image data, resize and add to file
-              im = Image.open(os.path.join(path, f))
-              im = im.resize((WIDTH, HEIGHT), Image.BICUBIC)
+                imdata = np.asarray(im.getdata())
+                imdata = imdata.reshape((3, im.height, im.width))
+                im.close()
+#                 print imdata.shape
 
-              imdata = np.asarray(im.getdata())
-              imdata = imdata.reshape((3, im.height, im.width))
-              im.close()
-#               print imdata.shape
+                # Add all data to HDF5
+                data_dset[img,:,:,:] = imdata
 
-              # Add all data to HDF5
-              data_dset[i,:,:,:] = imdata
+                month_dset[img] = int(month)
+                day_dset[img] = int(day)
 
-              month_dset[i] = int(month)
-              day_dset[i] = int(day)
+                hour_dset[img] = int(hour)
+                minute_dset[img] = int(minute)
 
-              hour_dset[i] = int(hour)
-              minute_dset[i] = int(minute)
+                #if not lot in LOT:
+                  #print "ERROR: lot '{0}' not in list of lot names".format(lot)
+                lot_dset[img] = LOT.index(lot) + 1
+                space_dset[img] = space
 
-              #if not lot in LOT:
-                #print "ERROR: lot '{0}' not in list of lot names".format(lot)
-              lot_dset[i] = LOT.index(lot) + 1
-              space_dset[i] = space
+                occupied_dset[img] = OCCUPIED.index(occupied) + 1
+                stats[occupied] += 1
+                weather_dset[img] = WEATHER.index(weather) + 1
+                stats[weather] += 1
 
-              occupied_dset[i] = OCCUPIED.index(occupied) + 1
-              stats[occupied] += 1
-              weather_dset[i] = WEATHER.index(weather) + 1
-              stats[weather] += 1
+                if params['count_spots']:
+                    xmlpath = os.path.join(path, f[:-3] + 'xml')
+                    if not os.path.isfile(xmlpath):
+                        print "Warning: could not find file '{0}'".format(xmlpath)
+                        continue
+                    count = count_spots(path + '/' + f[:-3] + 'xml')
+                    #print "At {0}, empty {1}".format(os.path.join(path, f), count)
+                    count_dset[i] = count
+                    stats_count_spots[count] = stats_count_spots.setdefault(count, 0) + 1
 
-              if params['count_spots']:
-                  xmlpath = os.path.join(path, f[:-3] + 'xml')
-                  if not os.path.isfile(xmlpath):
-                      print "Warning: could not find file '{0}'".format(xmlpath)
-                      continue
-                  count = count_spots(path + '/' + f[:-3] + 'xml')
-                  #print "At {0}, empty {1}".format(os.path.join(path, f), count)
-                  count_dset[i] = count
-                  stats_count_spots[count] = stats_count_spots.setdefault(count, 0) + 1
+#                 if np.random.sample() < 1e-3:
+#                     print month, day, hour, minute, lot, space, occupied, weather
+#                     print month_dset[i], day_dset[i], hour_dset[i], minute_dset[i], lot_dset[i], space_dset[i], occupied_dset[i], weather_dset[i]
+                img += 1
+                if img % 1000 == 0:
+                    print "*",
+                    sys.stdout.flush()
+                if img % 10000 == 0:
+                    print ""
+                    sys.stdout.flush()
+                if img % 100000 == 0:
+                    print "\n"
+                    sys.stdout.flush()
 
-#               if np.random.sample() < 1e-3:
-#                   print month, day, hour, minute, lot, space, occupied, weather
-#                   print month_dset[i], day_dset[i], hour_dset[i], minute_dset[i], lot_dset[i], space_dset[i], occupied_dset[i], weather_dset[i]
-
-              i += 1
-              if i % 1000 == 0:
-                  print "*",
-                  sys.stdout.flush()
-              if i % 10000 == 0:
-                  print ""
-                  sys.stdout.flush()
-              if i % 100000 == 0:
-                  print "\n"
-                  sys.stdout.flush()
-#             if image_mask[i] == 0:
-#                 continue
-            if i >= image_count:
+            # Increment image counters
+            step += 1
+            if img >= image_count:
                 break
-        if i >= image_count:
+        if img >= image_count:
             break
 
     hf.close()
