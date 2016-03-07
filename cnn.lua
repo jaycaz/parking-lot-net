@@ -1,7 +1,9 @@
 ----------------------------------------------------------------------
 -- CNN implementation using torch.
 --
---
+-- Used https://github.com/torch/demos/blob/master/train-a-digit-classifier/train-on-mnist.lua and
+-- https://github.com/jcjohnson/torch-rnn/blob/master/train.lua as example code
+-- 
 -- Martina Marek
 ----------------------------------------------------------------------
 
@@ -11,35 +13,41 @@ require 'nn'
 require 'optim' -- for various trainer methods
 require 'image'
 require 'pl'
-read_data = require("read_data")
-
+require 'os'
+stats = require("stats")
 -------------------- Parameters for network --------------------------
 
 local cmd = torch.CmdLine()
 
 -- Hyperparameters
-cmd:option('-learning_rate', 0.001)
-cmd:option('-num_epochs', 25)
-cmd:option('-opt_method', 'sgd')
+cmd:option('-learning_rate', 0.000087) -- value obtained through crossval
+cmd:option('-num_epochs', 1)
+cmd:option('-opt_method', 'adam')
 cmd:option('-lr_decay_every', 5)
-cmd:option('-lr_decay_factor', 0.5)
+cmd:option('-lr_decay_factor', 0.9)
+cmd:option('-momentum', 0.9)
+cmd:option('-batch_size', 25)
 
 -- Output options
 cmd:option('-print_every', 1)
+cmd:option('-print_test', 0)
+cmd:option('-save_model', 0)
 
 -- network architecture
-fc_layers = {120, 50, 10} -- number of nodes in each fully connected layers (output layer is added additionally)
-conv_layers = {10, 20} -- number of nodes in each convolutional layer
-filter_size = 5 -- filter size for convolutional layers
-pad = 2
-stride = 1
-pool_size = 2
+cmd:option('-filter_size', 5)
+cmd:option('-pool_size', 2)
+cmd:option('-conv_layers', "10, 20, 30")
+cmd:option('-fc_layers', "10, 20, 30")
+local stride = 1
 
-
+-- special training mode options (e.g. train only on rainy, test on sunny pictures,...)
+cmd:option('-train_set', 'nil')
+cmd:option('-test_set', 'nil')
+ 
 -- class 0 means empty parking spot, 1 means occupied spot
 classes = {'Empty', 'Occupied'}
 
-input_channels = 3
+local input_channels = 3
 local IMG_WIDTH = 48
 local IMG_HEIGHT = 64
 
@@ -49,56 +57,52 @@ cmd:option('-gpu', 0)
 -- TODO: Load the data.
 cmd:option('-path', '/Users/martina/Documents/Uni/USA/Stanford/2.Quarter/CNN/Finalproject/PKLot')
 --local data_dir = '/home/jordan/Documents/PKLot'
+cmd:option('-h5_file', '/Users/martina/Documents/Uni/USA/Stanford/2.Quarter/CNN/Finalproject/parking-lot-net/pklot.hdf5')
+cmd:option('-labels', 'meta_occupied')
+cmd:option('-max_spots', 0)
 
 local params = cmd:parse(arg)
 
-if params.gpu > 0 then  
-  require 'cunn';
-  net = net:cuda()
-  criterion = criterion:cuda()
-  trainset.data = trainset.data:cuda()
+function string:split(sep)
+        local sep, fields = sep or ":", {}
+        local pattern = string.format("([^%s]+)", sep)
+        self:gsub(pattern, function(c) fields[#fields+1] = tonumber(c) end)
+        return fields
 end
 
-NUM_TRAIN = 100
-NUM_TEST = 100
-trainset, testset = read_data.get_train_test_sets(NUM_TRAIN, NUM_TEST, params.path)
---print(#trainset.label)
--- for k,v in ipairs(trainset.label) do print(v) end
 
--- Add index operator for trainset
-setmetatable(trainset, 
-    {__index = function(t, i) 
-                    return {t.data[i], t.label[i]} 
-                end}
-);
+conv_layers = params.conv_layers:split(", ")
+fc_layers = params.fc_layers:split(", ")
 
-trainset.data = trainset.data:double() -- convert the data from a ByteTensor to a DoubleTensor.
 
- 
-function trainset:size() 
-    return self.data:size(1) 
-end
+require 'DataLoader'
+local loader = DataLoader{h5_file = params.h5_file, train_cond1=params.train_set, train_cond2=params.test_set, labels=params.labels, max_spots=params.max_spots}
 
---print(trainset[33][1]:size())
+NUM_TRAIN = loader:getTrainSize()
+NUM_TEST = loader:getTestSize()
+NUM_VAL = loader:getValSize()
+
 
 -------------------- Set up of network ------------------------------
 
+assert(#conv_layers < 5, 'ConvNet cannot have more than 4 convolutional layers - image size too small!')
 net = nn.Sequential()
 
+local pad = (params.filter_size - 1)/2
+
 -- Adding first layer
-net:add(nn.SpatialConvolution(input_channels, conv_layers[1], filter_size, filter_size, stride, stride, pad, pad))  
+net:add(nn.SpatialConvolution(input_channels, conv_layers[1], params.filter_size, params.filter_size, stride, stride, pad, pad))  
 net:add(nn.ReLU())                       
-net:add(nn.SpatialMaxPooling(pool_size,pool_size,pool_size,pool_size))     
+net:add(nn.SpatialMaxPooling(params.pool_size,params.pool_size,params.pool_size,params.pool_size))     
 
 -- adding rest of conv layers
 for i=2,#conv_layers do
-  net:add(nn.SpatialConvolution(conv_layers[i - 1], conv_layers[i], filter_size, filter_size, stride, stride, pad, pad))
+  net:add(nn.SpatialConvolution(conv_layers[i - 1], conv_layers[i], params.filter_size, params.filter_size, stride, stride, pad, pad))
   net:add(nn.ReLU())                       
-  net:add(nn.SpatialMaxPooling(pool_size,pool_size,pool_size,pool_size))
+  net:add(nn.SpatialMaxPooling(params.pool_size,params.pool_size,params.pool_size,params.pool_size))
 end
 
 -- Start of fully-connected part: 
--- TODO: Not hardcode image size
 local pow = #conv_layers
 local fcin = {conv_layers[#conv_layers], IMG_HEIGHT/(math.pow(2, pow)), IMG_WIDTH/(math.pow(2, pow))}
 local fcinprod = torch.prod(torch.Tensor(fcin))
@@ -120,41 +124,38 @@ net:add(nn.LogSoftMax())
 -- Add a negative log-likelihood criterion for multi-class classification
 criterion = nn.ClassNLLCriterion()
 
--- Preprocessing of the data
-mean = {} -- store the mean, to normalize the test set in the future
-stdv  = {} -- store the standard-deviation for the future
-for i=1,input_channels do -- over each image channel
-    mean[i] = trainset.data[{ {}, {i}, {}, {}  }]:mean() -- mean estimation
-    print('Channel ' .. i .. ', Mean: ' .. mean[i]) -- for debugging
-    trainset.data[{ {}, {i}, {}, {}  }]:add(-mean[i]) -- mean subtraction
-    
-    -- Maybe not necessary according to Andrey - we can figure out what works best in the end, but I think in the
-    -- assigments we did not subtract the std
-    -- stdv[i] = trainset.data[{ {}, {i}, {}, {}  }]:std() -- std estimation
-    -- print('Channel ' .. i .. ', Standard Deviation: ' .. stdv[i]) --for debugging
-    -- trainset.data[{ {}, {i}, {}, {}  }]:div(stdv[i]) -- std scaling
+-- If GPU, convert to CudaTensors
+if params.gpu > 0 then  
+  require 'cunn';
+  require 'cutorch';
+  net = net:cuda()
+  criterion = criterion:cuda()
 end
 
 weights, grad_params = net:getParameters()
+
 
 -- function for the optim methods
 local function f(w)
   assert(w == weights)
   grad_params:zero()
   
-  -- DO TO: get minibatch of data, convert to cuda
-  local x = trainset.data
-  local y = torch.Tensor(trainset.label)
-
+  -- Get minibatch of data, convert to cuda
+  local x, y = loader:getBatch{batch_size = params.batch_size, split = 'train'}
+  if params.gpu > 0 then
+    x = x:cuda()
+    y = y:cuda()
+  end
   local scores = net:forward(x)
-  --local scores_view = scores:view(N, -1)
-  --local y_view = y:view(N)
-  --local loss = crit:forward(scores_view, y_view)
-  local loss = criterion:forward(scores, y) --maybe have to reshape scores?!
+  local loss = criterion:forward(scores, y) 
   
   --local grad_scores = criterion:backward(scores_view, y_view):view(N, -1)
   local grad_scores = criterion:backward(scores, y)
   net:backward(x, grad_scores)
+
+  --require 'saliencyMaps'
+  --local maps = saliencyMaps()
+  --maps:compute_map(net, x[1], y[1])  
   return loss, grad_params
 end
 
@@ -164,41 +165,106 @@ confusion = optim.ConfusionMatrix(classes)
 
 
 -- train the network
-if params.opt_method == 'sgd' then
-  trainer = nn.StochasticGradient(net, criterion)
-  trainer.learningRate = params.learning_rate
-  trainer.maxIteration = params.num_epochs
-  trainer:train(trainset)
-elseif params.opt_method == 'adam' then
   local optim_config = {learningRate = params.learning_rate}
   local num_iterations = params.num_epochs * NUM_TRAIN 
   
-  for i = 1, num_iterations do
-    local epoch = math.floor(i / NUM_TRAIN) + 1
+for i = 1, num_iterations do
+  local epoch = math.floor(i / NUM_TRAIN) + 1
     
-    -- Maybe decay learning rate
-    if epoch % params.lr_decay_every == 0 then
-      local old_lr = optim_config.learningRate
-      optim_config = {learningRate = old_lr * params.lr_decay_factor}
+  -- update step
+  local loss = 0
+  if params.opt_method == 'sgd' then
+    optim_sgd = optim_sgd or {
+          learningRate = params.learning_rate,
+          momentum = params.momentum,
+          learningRateDecay = params.lr_decay_factor
+       }
+    if new_lr ~= nil then
+      optim_sgd.learningRate = new_lr
     end
-
-    -- update step
-    local _, loss = optim.adam(f, weights, optim_config)
-    table.insert(train_loss_history, loss[1])
-
-    -- update confusion
-    --confusion:add(output, targets[i])
-    --local trainAccuracy = confusion.totalValid * 100
-    --confusion:zero()
-
-    -- print
-    if params.print_every > 0 and i % params.print_every == 0 then
-      local float_epoch = i / NUM_TRAIN + 1
-      local msg = 'Epoch %.2f / %d, i = %d / %d, loss = %f'
-      local args = {msg, float_epoch, params.num_epochs, i, num_iterations, loss[1]}
-      print(string.format(unpack(args)))
+    print(optim_sgd.learningRate)
+    _, loss = optim.sgd(f, weights, optim_sgd)
+  elseif params.opt_method == 'adam' then
+    optim_adam = optim_adam or {
+          learningRate = params.learning_rate,
+          learningRateDecay = params.lr_decay_factor
+       }
+    if new_lr ~= nil then
+      optim_adam.learningRate = new_lr
     end
-  
-    weights, grad_params = net:getParameters()
+    _, loss = optim.adam(f, weights, optim_adam)
+  else
+    print('Unkown update method.')
   end
+
+  table.insert(train_loss_history, loss[1])
+
+  -- Maybe decay learning rate
+  if epoch % params.lr_decay_every == 0 then
+    local old_lr 
+    if params.opt_method == 'sgd' then
+      old_lr = optim_sgd.learningRate
+    elseif params.opt_method == 'adam' then
+      old_lr = optim_adam.learningRate
+    end
+    new_lr = old_lr * params.lr_decay_factor
+  end
+
+
+  -- update confusion
+  --confusion:add(output, targets[i])
+  --local trainAccuracy = confusion.totalValid * 100
+  --confusion:zero()
+
+  -- print
+  if params.print_every > 0 and i % params.print_every == 0 then
+    local float_epoch = i / NUM_TRAIN -- + 1
+    local msg = 'Epoch %.2f / %d, i = %d / %d, loss = %f'
+    local args = {msg, float_epoch, params.num_epochs, i, num_iterations, loss[1]}
+    print(string.format(unpack(args)))
+  end
+  
+  weights, grad_params = net:getParameters()
+end -- Finished training
+
+
+-- Print final train and validation statistics
+print(string.format('Running model on train set (%d images)...', NUM_TRAIN))
+local train, train_y = loader:getBatch{batch_size = NUM_VAL, split = 'train'}
+local train_acc = stats.acc(net:double(), train:double(), train_y:int())
+
+print(string.format('Train Accuracy: %04f', train_acc))
+
+print(string.format('Running model on validation set (%d images)...', NUM_VAL))
+
+local val, val_y = loader:getBatch{batch_size = NUM_VAL, split = 'val'}
+local val_acc = stats.acc(net:double(), val:double(), val_y:int())
+
+
+print(string.format('Val Accuracy: %04f', val_acc))
+
+print("*Val Acc,Train Acc,Learn Rate,Batch Size,LR Decay Rate,LR Decay Every,Weather Train,Weather Test")
+print(string.format("**%04f,%04f,%04f,%d,%04f,%d,%s,%s", 
+                    val_acc, train_acc, params.learning_rate, params.batch_size, params.lr_decay_factor, 
+                    params.lr_decay_every, params.train_set, params.test_set))
+
+
+-- Optionally, print test statistics
+if params.print_test == 1 then
+  local test, test_y = loader:getBatch{batch_size = NUM_VAL, split = 'test'}
+  local test_acc = stats.acc(net:double(), test:double(), test_y:int())
+
+  print(string.format('Test Accuracy: %04f', test_acc))
+
+  print("*Test Acc,Train Acc,Learn Rate,Batch Size,LR Decay Rate,LR Decay Every,Weather Train,Weather Test")
+  print(string.format("**%04f,%04f,%04f,%d,%04f,%d,%s,%s", 
+                      test_acc, train_acc, params.learning_rate, params.batch_size, params.lr_decay_factor, 
+                      params.lr_decay_every, params.train_set, params.test_set))
+end
+
+-- Optionally, save model parameters
+if params.save_model == 1 then
+  local model_filename = string.format("model_%d", os.time())
+  torch.save(model_filename, net:double())
+  print(string.format("Model parameters saved to: %s", model_filename))
 end
