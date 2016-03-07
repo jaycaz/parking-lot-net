@@ -26,9 +26,14 @@ function stats.acc(model, data, labels)
 
   -- Find number of generated labels that match ground truth labels
   maxs, indices = torch.max(scores, 2)
-
+  indices = torch.reshape(indices, indices:size(1))
   local correct = torch.sum(torch.eq(indices, labels:long()))
-  local num_labels = labels:size()[1]
+  local num_labels = labels:size(1)
+
+  for i = 1, labels:size(1) do
+    print(string.format("Guess %d, Correct %d", indices[i], labels[i]))
+  end
+
   return correct / num_labels
 
 end

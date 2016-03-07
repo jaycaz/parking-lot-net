@@ -23,8 +23,13 @@ parser.add_argument('--count_spots', action='store_true')
 params = vars(parser.parse_args())
 #print params
 
-WIDTH = 48
-HEIGHT = 64
+if params['count_spots']:
+    WIDTH = 256
+    HEIGHT = 128
+
+else:
+    WIDTH = 48
+    HEIGHT = 64
 
 WEATHER = ['Sunny', 'Cloudy', 'Rainy']
 WEATHER_SET = set(WEATHER)
@@ -37,6 +42,7 @@ LOT_SET = set(LOT)
 
 # Parameters for statistics
 stats = {'Sunny': 0, 'Cloudy': 0, 'Rainy': 0, 'Empty': 0, 'Occupied': 0}
+stats_count_spots = {}
 
 # User defined variables here
 #root = r'C:\Users\jacaz_000\Downloads\PKLot\PKLotSegmented'
@@ -92,17 +98,24 @@ with h5py.File(params['h5_name'], 'w') as hf:
 
         # Get metadata of current folder
         tags = path.split(os.path.sep)
-        occupied = tags[-1]
-    #     date = tags[-2]
-        weather = tags[-3]
-        lot = tags[-4]
+
+        # Check if we are iterating through spaces dirs or lots dirs
+        if not tags[-1] in OCCUPIED:
+            occupied = OCCUPIED[0]
+            weather = tags[-2]
+            lot = tags[-3]
+        else:
+            occupied = tags[-1]
+        #     date = tags[-2]
+            weather = tags[-3]
+            lot = tags[-4]
 
         # Add image files
         for f in files:
             _, ext = os.path.splitext(f)
 	    if ext == '.jpg':
 
-              print (files)
+              #print (files)
               # Get Date and Time metadata
               date = f[:f.find('_')]
               year, month, day = tuple(date.split('-'))
@@ -130,6 +143,8 @@ with h5py.File(params['h5_name'], 'w') as hf:
               hour_dset[i] = int(hour)
               minute_dset[i] = int(minute)
 
+              #if not lot in LOT:
+                #print "ERROR: lot '{0}' not in list of lot names".format(lot)
               lot_dset[i] = LOT.index(lot) + 1
               space_dset[i] = space
 
@@ -139,9 +154,14 @@ with h5py.File(params['h5_name'], 'w') as hf:
               stats[weather] += 1
 
               if params['count_spots']:
+                  xmlpath = os.path.join(path, f[:-3] + 'xml')
+                  if not os.path.isfile(xmlpath):
+                      print "Warning: could not find file '{0}'".format(xmlpath)
+                      continue
                   count = count_spots(path + '/' + f[:-3] + 'xml')
-                  print count
+                  #print "At {0}, empty {1}".format(os.path.join(path, f), count)
                   count_dset[i] = count
+                  stats_count_spots[count] = stats_count_spots.setdefault(count, 0) + 1
 
 #               if np.random.sample() < 1e-3:
 #                   print month, day, hour, minute, lot, space, occupied, weather
@@ -175,6 +195,10 @@ with h5py.File(params['h5_name'], 'w') as hf:
         for k in i:
             print "{0}: {1} ({2}%)".format(k, stats[k], 100 * stats[k] / float(image_count))
         print ""
+
+    if params['count_spots']:
+        for k,v in stats_count_spots.iteritems():
+           print "{0} Spots: {1} ({2}%)".format(k, v, 100 * v / float(image_count))
 
     
     
