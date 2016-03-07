@@ -1,5 +1,3 @@
--- modified from https://github.com/karpathy/neuraltalk2/blob/master/misc/DataLoader.lua
-
 require 'hdf5'
 require 'math'
 
@@ -23,9 +21,11 @@ function DataLoader:__init(opt)
             self.num_channels, self.height, self.width))
   self.label_name = opt.labels
   self.max_spots = opt.max_spots
+  print("max_spots ".. opt.max_spots)
 
   self.split_ix = {}
-  if opt.weather_cond1 == 'nil' then 
+  print(opt.weather_cond1)
+  if opt.weather_cond1 == nil then 
     -- separate out indexes for each of the provided splits
     self.split_ix['train'] = torch.randperm(torch.floor(self.num_images * 0.7))
     local offset = self.split_ix['train']:size()[1]
@@ -143,6 +143,7 @@ function DataLoader:getValSize()
   return self.split_ix['val']:size()[1]
 end
 
+
 -- function for minibatch read in
 function DataLoader:getBatch(opt)
   local split = opt.split -- lets require that user passes this in, for safety
@@ -179,8 +180,10 @@ function DataLoader:getBatch(opt)
   end
 
   -- subtract mean
-  for i=1,self.num_channels do
-    img_batch_raw[{ {}, {i}, {}, {}  }]:add(-self.mean[i]) -- mean subtraction
+  if opt.raw ~= true then
+    for i=1,self.num_channels do
+      img_batch_raw[{ {}, {i}, {}, {}  }]:add(-self.mean[i]) -- mean subtraction
+    end
   end
 
   return img_batch_raw, label_batch

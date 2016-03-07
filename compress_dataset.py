@@ -16,11 +16,12 @@ from count_spots import count_spots
 
 parser = argparse.ArgumentParser(description="Compress PKLot dataset into HDF5 file")
 
-parser.add_argument('--data_root', default=r'/home/jordan/Documents/PKLot/PKLotSegmented')
+parser.add_argument('--data_root', default=r'/home/jordan/Documents/PKLot')
 parser.add_argument('--add_prop', type=float, default=1.0, help='Proportion of images to add to file')
 parser.add_argument('--h5_name', default='pklot.hdf5', help='Name of HDF5 file to create')
-parser.add_argument('--count_spots', action='store_true')
+parser.add_argument('--count_spots', action='store_true', help='If used, will assume the lot dset is used and will add empty space counts to h5 file')
 parser.add_argument('--seed', type=int, default=-1)
+parser.add_argument('--choose_by_lot', action='store_true', help='If used, choosing which image to add will be done by lot rather than space')
 
 params = vars(parser.parse_args())
 #print params
@@ -48,8 +49,16 @@ stats_count_spots = {}
 
 # Count all images before traversing directory
 total_images = 0 
+seg_root = os.path.join(params['data_root'], 'PKLotSegmented')
+lot_root = os.path.join(params['data_root'], 'PKLot')
+
+if params['count_spots']:
+    data_root = lot_root
+else:
+    data_root = seg_root
+
 print "Counting images..."
-for path, dirs, files in os.walk(params['data_root']):
+for path, dirs, files in os.walk(seg_root):
     total_images += len(files)
 print "Image count: ", total_images
 
@@ -94,7 +103,7 @@ with h5py.File(params['h5_name'], 'w') as hf:
 
     step = 0 # Number of steps through directory
     img = 0 # Number of images actually added
-    for path, dirs, files in os.walk(params['data_root']):
+    for path, dirs, files in os.walk(data_root):
         #if len(files) == 0:
         #    continue
 
