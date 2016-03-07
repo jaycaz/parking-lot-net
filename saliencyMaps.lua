@@ -11,6 +11,6 @@ function saliencyMaps:compute_map(net, x, y)
   dout[y] = 1
   local dx = net:backward(x,dout)
   local map = torch.abs(torch.max(dx, 1):double())
-  --image.save('test.jpg', map)
+  map = map / torch.max(map)
   return map
 end

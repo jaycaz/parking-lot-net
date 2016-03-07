@@ -34,13 +34,14 @@ function DataLoader:__init(opt)
     self.split_ix['test'] = torch.randperm(torch.floor(self.num_images - offset)) + offset
     assert((self.split_ix['train']:size()[1] + self.split_ix['val']:size()[1] + self.split_ix['test']:size()[1]) == self.num_images, 'number of images in train/val/test do not match number of images')
   else
-    local cond_no1, cond_no2 = resolve_weather_cond(opt.weather_cond1, opt.weather_cond2)
+    local cond_no1, cond_no2 = resolve_labels(opt.train_cond1, opt.train_cond2)
+    local metadata = resolve_metadata(opt.train_cond1)
     count_cond1 = 0
     count_cond2 = 0
 
     -- Count images that satisfy cond1 and cond2
     for i=1,self.num_images do
-      cond = self.h5_file:read('/meta_weather'):partial({i,i})[1]
+      cond = self.h5_file:read(metadata):partial({i,i})[1]
       if cond == cond_no1 then
         count_cond1 = count_cond1 + 1
       end
@@ -186,7 +187,19 @@ function DataLoader:getBatch(opt)
 end
 
 
-function resolve_weather_cond(cond1, cond2) 
+function resolve_metadata(cond)
+  if (cond == 'sunny') or (cond == 'rainy') or (cond == 'cloudy') then
+    return '/meta_weather'
+  end
+  if (cond == 'PUC') or (cond == 'UFPR04') or (cond == 'UFPR05') then
+    return '/meta_lot'
+  end
+  return nil
+end
+
+
+
+function resolve_labels(cond1, cond2) 
   local no1 = 0
   local no2 = 0
   if cond1 == 'sunny' then
@@ -203,6 +216,20 @@ function resolve_weather_cond(cond1, cond2)
   elseif cond2 == 'rainy' then
     no2 = 3
   end
-  assert(no1 ~= 0 and no2 ~= 0, 'Weather conditions could not be resolved to labels')
+  if cond1 == 'PUC' then
+    no1 = 1
+  elseif cond1 == 'UFPR04' then
+    no1 = 2
+  elseif cond1 == 'UFPR05' then
+    no1 = 3
+  end
+  if cond2 == 'PUC' then
+    no2 = 1
+  elseif cond2 == 'UFPR04' then
+    no2 = 2
+  elseif cond2 == 'UFPR05' then
+    no2 = 3
+  end
+  assert(no1 ~= 0 and no2 ~= 0, 'Train set conditions could not be resolved to labels')
   return no1, no2
 end

@@ -41,8 +41,8 @@ cmd:option('-fc_layers', "10, 20, 30")
 local stride = 1
 
 -- special training mode options (e.g. train only on rainy, test on sunny pictures,...)
-cmd:option('-weather_train', 'nil')
-cmd:option('-weather_test', 'nil')
+cmd:option('-train_set', 'nil')
+cmd:option('-test_set', 'nil')
  
 -- class 0 means empty parking spot, 1 means occupied spot
 classes = {'Empty', 'Occupied'}
@@ -76,7 +76,7 @@ fc_layers = params.fc_layers:split(", ")
 
 
 require 'DataLoader'
-local loader = DataLoader{h5_file = params.h5_file, weather_cond1=params.weather_train, weather_cond2=params.weather_test, labels=params.labels, max_spots=params.max_spots}
+local loader = DataLoader{h5_file = params.h5_file, train_cond1=params.train_set, train_cond2=params.test_set, labels=params.labels, max_spots=params.max_spots}
 
 NUM_TRAIN = loader:getTrainSize()
 NUM_TEST = loader:getTestSize()
