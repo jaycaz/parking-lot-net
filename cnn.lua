@@ -20,11 +20,11 @@ stats = require("stats")
 local cmd = torch.CmdLine()
 
 -- Hyperparameters
-cmd:option('-learning_rate', 0.001)
-cmd:option('-num_epochs', 25)
-cmd:option('-opt_method', 'sgd')
+cmd:option('-learning_rate', 0.000087) -- value obtained through crossval
+cmd:option('-num_epochs', 1)
+cmd:option('-opt_method', 'adam')
 cmd:option('-lr_decay_every', 5)
-cmd:option('-lr_decay_factor', 0.5)
+cmd:option('-lr_decay_factor', 0.9)
 cmd:option('-momentum', 0.9)
 cmd:option('-batch_size', 25)
 
@@ -243,9 +243,10 @@ local val_acc = stats.acc(net:double(), val:double(), val_y:int())
 
 print(string.format('Val Accuracy: %04f', val_acc))
 
-print("*Val Acc,Train Acc,Learn Rate,Batch Size,LR Decay Rate,LR Decay Every")
-print(string.format("**%04f,%04f,%04f,%d,%04f,%d", 
-                    val_acc, train_acc, params.learning_rate, params.batch_size, params.lr_decay_factor, params.lr_decay_every))
+print("*Val Acc,Train Acc,Learn Rate,Batch Size,LR Decay Rate,LR Decay Every,Weather Train,Weather Test")
+print(string.format("**%04f,%04f,%04f,%d,%04f,%d,%s,%s", 
+                    val_acc, train_acc, params.learning_rate, params.batch_size, params.lr_decay_factor, 
+                    params.lr_decay_every, params.weather_train, params.weather_test))
 
 
 -- Optionally, print test statistics
@@ -255,9 +256,10 @@ if params.print_test == 1 then
 
   print(string.format('Test Accuracy: %04f', test_acc))
 
-  print("*Test Acc,Train Acc,Learn Rate,Batch Size,LR Decay Rate,LR Decay Every")
-  print(string.format("**%04f,%04f,%04f,%d,%04f,%d", 
-                      test_acc, train_acc, params.learning_rate, params.batch_size, params.lr_decay_factor, params.lr_decay_every))
+  print("*Test Acc,Train Acc,Learn Rate,Batch Size,LR Decay Rate,LR Decay Every,Weather Train,Weather Test")
+  print(string.format("**%04f,%04f,%04f,%d,%04f,%d,%s,%s", 
+                      test_acc, train_acc, params.learning_rate, params.batch_size, params.lr_decay_factor, 
+                      params.lr_decay_every, params.weather_train, params.weather_test))
 end
 
 -- Optionally, save model parameters
