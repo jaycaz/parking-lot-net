@@ -20,7 +20,7 @@ with open('crossval{0}.txt'.format(int(time.time())), 'w') as outfile:
         # TODO: add choices for conv_layers and fc_layers
 
         # Assemble call string
-        callstr = "th cnn.lua -h5_file pklot-small.hdf5 -num_epochs 1 -opt_method adam -print_every 0 -gpu 1 -learning_rate {0} -batch_size {1} -lr_decay_factor {2} -lr_decay_every {3}".format(lr, bsize, lrd, lrd_every)
+        callstr = "th cnn.lua -h5_file h5/pklot-small.hdf5 -num_epochs 1 -opt_method adam -print_every 0 -gpu 1 -learning_rate {0} -batch_size {1} -lr_decay_factor {2} -lr_decay_every {3}".format(lr, bsize, lrd, lrd_every)
 
         print callstr
         proc.call(callstr, stdout=outfile, shell=True)
