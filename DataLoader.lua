@@ -49,7 +49,7 @@ function DataLoader:__init(opt)
         count_cond2 = count_cond2 + 1
       end
     end
-    print(opt.weather_cond1, count_cond1, opt.weather_cond2, count_cond2)
+    print(opt.train_cond1, count_cond1, opt.train_cond2, count_cond2)
     count = {count_cond1, torch.floor(count_cond2 * 0.7), count_cond2 - torch.floor(count_cond2 * 0.7)}
     local split = {}
     split['train'] = torch.zeros(count[1])
@@ -61,7 +61,7 @@ function DataLoader:__init(opt)
     local idx_val = 0
     local idx_test = 0
     for i=1,self.num_images do
-      cond = self.h5_file:read('/meta_weather'):partial({i,i})[1]
+      cond = self.h5_file:read(metadata):partial({i,i})[1]
       if cond == cond_no1 then
         idx_train = idx_train + 1
         split['train'][idx_train] = i

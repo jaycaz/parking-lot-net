@@ -246,7 +246,7 @@ print(string.format('Val Accuracy: %04f', val_acc))
 print("*Val Acc,Train Acc,Learn Rate,Batch Size,LR Decay Rate,LR Decay Every,Weather Train,Weather Test")
 print(string.format("**%04f,%04f,%04f,%d,%04f,%d,%s,%s", 
                     val_acc, train_acc, params.learning_rate, params.batch_size, params.lr_decay_factor, 
-                    params.lr_decay_every, params.weather_train, params.weather_test))
+                    params.lr_decay_every, params.train_set, params.test_set))
 
 
 -- Optionally, print test statistics
@@ -259,7 +259,7 @@ if params.print_test == 1 then
   print("*Test Acc,Train Acc,Learn Rate,Batch Size,LR Decay Rate,LR Decay Every,Weather Train,Weather Test")
   print(string.format("**%04f,%04f,%04f,%d,%04f,%d,%s,%s", 
                       test_acc, train_acc, params.learning_rate, params.batch_size, params.lr_decay_factor, 
-                      params.lr_decay_every, params.weather_train, params.weather_test))
+                      params.lr_decay_every, params.train_set, params.test_set))
 end
 
 -- Optionally, save model parameters
