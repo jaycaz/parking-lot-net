@@ -27,6 +27,7 @@ cmd:option('-lr_decay_every', 5)
 cmd:option('-lr_decay_factor', 0.5)
 cmd:option('-momentum', 0.9)
 cmd:option('-batch_size', 25)
+cmd:option('-batch_norm', 0)
 
 -- Output options
 cmd:option('-print_every', 1)
@@ -76,7 +77,7 @@ fc_layers = params.fc_layers:split(", ")
 
 
 require 'DataLoader'
-local loader = DataLoader{h5_file = params.h5_file, train_cond1=params.train_set, train_cond2=params.test_set, labels=params.labels, max_spots=params.max_spots}
+local loader = DataLoader{h5_file = params.h5_file, train_cond=params.train_set, labels=params.labels, max_spots=params.max_spots}
 
 NUM_TRAIN = loader:getTrainSize()
 NUM_TEST = loader:getTestSize()
@@ -92,12 +93,18 @@ local pad = (params.filter_size - 1)/2
 
 -- Adding first layer
 net:add(nn.SpatialConvolution(input_channels, conv_layers[1], params.filter_size, params.filter_size, stride, stride, pad, pad))  
+if params.batch_norm > 0 then
+  net:add(nn.SpatialBatchNormalization(conv_layers[1]))
+end
 net:add(nn.ReLU())                       
 net:add(nn.SpatialMaxPooling(params.pool_size,params.pool_size,params.pool_size,params.pool_size))     
 
 -- adding rest of conv layers
 for i=2,#conv_layers do
   net:add(nn.SpatialConvolution(conv_layers[i - 1], conv_layers[i], params.filter_size, params.filter_size, stride, stride, pad, pad))
+  if params.batch_norm > 0 then
+    net:add(nn.SpatialBatchNormalization(conv_layers[i]))
+  end
   net:add(nn.ReLU())                       
   net:add(nn.SpatialMaxPooling(params.pool_size,params.pool_size,params.pool_size,params.pool_size))
 end
@@ -109,12 +116,17 @@ local fcinprod = torch.prod(torch.Tensor(fcin))
 
 -- Adding fully connected layers
 net:add(nn.View(fcinprod))
--- net:add(nn.Reshape(fcinprod))
 net:add(nn.Linear(fcinprod, fc_layers[1]))             
+if params.batch_norm > 0 then
+  net:add(nn.SpatialBatchNormalization(fc_layers[1]))
+end
 net:add(nn.ReLU())                       
 
 for i=2,#fc_layers do
   net:add(nn.Linear(fc_layers[i - 1], fc_layers[i]))
+  if params.batch_norm > 0 then
+    net:add(nn.SpatialBatchNormalization(fc_layers[i]))
+  end
   net:add(nn.ReLU())
 end
 
@@ -263,6 +275,6 @@ end
 -- Optionally, save model parameters
 if params.save_model == 1 then
   local model_filename = string.format("model_%d", os.time())
-  torch.save(model_filename, net:double())
+  torch.save(model_filename, net:float())
   print(string.format("Model parameters saved to: %s", model_filename))
 end
