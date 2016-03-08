@@ -32,6 +32,7 @@ cmd:option('-batch_size', 25)
 cmd:option('-print_every', 1)
 cmd:option('-print_test', 0)
 cmd:option('-save_model', 0)
+cmd:option('-print_confusion', 0)
 
 -- network architecture
 cmd:option('-filter_size', 5)
@@ -268,3 +269,15 @@ if params.save_model == 1 then
   torch.save(model_filename, net:double())
   print(string.format("Model parameters saved to: %s", model_filename))
 end
+
+-- Optionally, prjnt confusion matrix parameters for test set
+if params.print_confusion == 1 then
+  local test, test_y = loader:getBatch{batch_size = NUM_VAL, split = 'test'}
+  local conf = stats.confusion(net:double(), test:double(), test_y:int())
+
+  print('Confusion Matrix Statistics:')
+  for k,v in pairs(conf) do
+    print(string.format('%s: %f', k, v))
+  end
+end
+
