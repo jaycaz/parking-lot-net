@@ -154,7 +154,9 @@ function DataLoader:getBatch(opt)
   
   local img_batch_raw = torch.zeros(batch_size, self.num_channels, self.height, self.width)
   local label_batch = torch.zeros(batch_size)
+  local paths = {}
   local max_index = split_ix:size()[1]
+
   
   for i=1,batch_size do
     local ri = self.iterators[split] -- get next index from iterator
@@ -171,6 +173,30 @@ function DataLoader:getBatch(opt)
     img_batch_raw[i] = img
      
     label = self.h5_file:read('/' .. self.label_name):partial({ix,ix})[1]
+   
+    -- Optionally store path
+    if opt.get_paths == true then
+      local year = self.h5_file:read('/meta_year'):partial({ix, ix})[1]
+      local month = self.h5_file:read('/meta_month'):partial({ix, ix})[1]
+      local day = self.h5_file:read('/meta_day'):partial({ix, ix})[1]
+      local hour = self.h5_file:read('/meta_hour'):partial({ix, ix})[1]
+      local minute = self.h5_file:read('/meta_minute'):partial({ix, ix})[1]
+      local second = self.h5_file:read('/meta_second'):partial({ix, ix})[1]
+      local space = self.h5_file:read('/meta_space'):partial({ix, ix})[1]
+
+      local occupied = self.h5_file:read('/meta_occupied'):partial({ix, ix})[1]
+      if occupied == 1 then occupied = 'Empty' else occupied = 'Occupied' end
+      local lot = self.h5_file:read('/meta_lot'):partial({ix, ix})[1]
+      if lot == 1 then lot = 'PUC' elseif lot == 2 then lot = 'UFPR04' else lot = 'UFPR05' end
+      local weather = self.h5_file:read('/meta_weather'):partial({ix, ix})[1]
+      if weather == 1 then weather = 'Sunny' elseif weather == 2 then weather = 'Cloudy' else weather = 'Rainy' end
+
+      local path = string.format('%s/%s/%04d-%02d-%02d/%s/%04d-%02d-%02d_%02d_%02d_%02d#%03d.jpg',
+                    lot, weather, year, month, day, occupied, year, month, day, hour, minute, second, space)
+      --print(path)
+      table.insert(paths, path)
+    end
+
     if self.max_spots ~= 0 then
       if label > self.max_spots then
         label = self.max_spots
@@ -186,7 +212,11 @@ function DataLoader:getBatch(opt)
     end
   end
 
-  return img_batch_raw, label_batch
+  if opt.get_paths == true then
+    return img_batch_raw, label_batch, paths
+  else
+    return img_batch_raw, label_batch
+  end
 end
 
 

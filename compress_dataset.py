@@ -84,13 +84,13 @@ with h5py.File(params['h5_name'], 'w') as hf:
 
     data_dset = hf.create_dataset('data', (image_count, 3, HEIGHT, WIDTH), dtype='i')
 
-    # year_dset = hf.create_dataset('meta_year', (image_count,), dtype='i')
+    year_dset = hf.create_dataset('meta_year', (image_count,), dtype='i')
     month_dset = hf.create_dataset('meta_month', (image_count,), dtype='i')
     day_dset = hf.create_dataset('meta_day', (image_count,), dtype='i')
 
     hour_dset = hf.create_dataset('meta_hour', (image_count,), dtype='i')
     minute_dset = hf.create_dataset('meta_minute', (image_count,), dtype='i')
-    # second_dset = hf.create_dataset('meta_second', (image_count,), dtype='i')
+    second_dset = hf.create_dataset('meta_second', (image_count,), dtype='i')
 
     lot_dset = hf.create_dataset('meta_lot', (image_count,), dtype='i')
     space_dset = hf.create_dataset('meta_space', (image_count,), dtype='i')
@@ -147,11 +147,13 @@ with h5py.File(params['h5_name'], 'w') as hf:
                 # Add all data to HDF5
                 data_dset[img,:,:,:] = imdata
 
+                year_dset[img] = int(year)
                 month_dset[img] = int(month)
                 day_dset[img] = int(day)
 
                 hour_dset[img] = int(hour)
                 minute_dset[img] = int(minute)
+                second_dset[img] = int(second)
 
                 #if not lot in LOT:
                   #print "ERROR: lot '{0}' not in list of lot names".format(lot)

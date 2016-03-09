@@ -7,26 +7,9 @@ local stats = {}
 -- based on groud truth labels <labels>
 function stats.acc(model, data, labels)
 
-  local BATCH_SIZE = 1000
-  local score0 = model:forward(data[1])
-
-  local data_size = data:size(1)
-  local num_labels = score0:size(1)
-
-  scores = torch.Tensor(data_size, num_labels)
-
-  -- Process data in batches
-  local i = 1
-  while i < data_size do
-    b = math.min(BATCH_SIZE, data_size - i)
-    --print(data[{{i,i+b}}]:size())
-    scores[{{i,i+b}}] = model:forward(data[{{i,i+b}}])
-    i = i+b
-  end
 
   -- Find number of generated labels that match ground truth labels
-  maxs, indices = torch.max(scores, 2)
-  indices = torch.reshape(indices, indices:size(1))
+  local indices = classify(model, data)
   local correct = torch.sum(torch.eq(indices, labels:long()))
   local num_labels = labels:size(1)
 
@@ -42,26 +25,11 @@ end
 -- Occupied counts as positive
 function stats.confusion(model, data, labels)
 
-  local BATCH_SIZE = 1000
   local score0 = model:forward(data[1])
-
   local data_size = data:size(1)
   local num_labels = score0:size(1)
 
-  scores = torch.Tensor(data_size, num_labels)
-
-  -- Process data in batches
-  local i = 1
-  while i < data_size do
-    b = math.min(BATCH_SIZE, data_size - i)
-    --print(data[{{i,i+b}}]:size())
-    scores[{{i,i+b}}] = model:forward(data[{{i,i+b}}])
-    i = i+b
-  end
-
-  -- Find number of generated labels that match ground truth labels
-  maxs, indices = torch.max(scores, 2)
-  indices = torch.reshape(indices, indices:size(1))
+  local indices = classify(model, data)
 
   local tp = torch.sum(torch.cmul(torch.eq(indices,2), torch.eq(labels:long(),2)))
   local fp = torch.sum(torch.cmul(torch.eq(indices,2), torch.eq(labels:long(),1)))
@@ -79,4 +47,45 @@ function stats.confusion(model, data, labels)
   return res
 end
 
+
+-- Returns file paths of all misclassified images
+function stats.misclassified(model, data, paths, labels)
+  local misclass_paths = {}
+  local indices = classify(model, data)
+
+  for i = 1, indices:size(1) do
+    if indices[i] ~= labels[i] then
+      table.insert(misclass_paths, paths[i])
+    end
+  end
+
+  return misclass_paths
+end
+
+
+function classify(model, data)
+  local BATCH_SIZE = 1000
+  local score0 = model:forward(data[1])
+  local data_size = data:size(1)
+  local num_labels = score0:size(1)
+  local scores = torch.Tensor(data_size, num_labels)
+
+  -- Process data in batches
+  local i = 1
+  while i < data_size do
+    b = math.min(BATCH_SIZE, data_size - i)
+    --print(data[{{i,i+b}}]:size())
+    scores[{{i,i+b}}] = model:forward(data[{{i,i+b}}])
+    i = i+b
+  end
+
+  -- Find number of generated labels that match ground truth labels
+  maxs, indices = torch.max(scores, 2)
+  indices = torch.reshape(indices, indices:size(1))
+
+  return indices
+end
+
+
 return stats
+
