@@ -61,9 +61,10 @@ function DataLoader:__init(opt)
         elseif idx_val < split['val']:size()[1] then
           idx_val = idx_val + 1
           split['val'][idx_val] = i
-        else    
+        else dx_test < split['test']:size()[1] then   
           idx_test = idx_test + 1
           split['test'][idx_test] = i
+        else break
         end
       end
     end
@@ -126,24 +127,26 @@ end
 function DataLoader:reloadTestData(split)
   local cond = resolve_labels(split)
   local metadata = resolve_metadata(split)
-  count = {torch.floor(cond * 0.2), torch.floor(cond * 0.1)}
+  count = {torch.floor(self.cond_counts[cond] * 0.2), torch.floor(self.cond_counts[cond] * 0.1)}
   local split = {}
   split['val'] = torch.zeros(count[1])
   split['test'] = torch.zeros(count[2])
 
-  self.num_images = self.split_ix['train']:size()[1] + count[2] + count[3]
+  self.num_images = self.split_ix['train']:size()[1] + count[1] + count[2]
    
   local idx_val = 0
   local idx_test = 0
   for i=1,self.num_images do
-    c = self.h5_file:read('/meta_weather'):partial({i,i})[1]
+    c = self.h5_file:read(metadata):partial({i,i})[1]
     if c == cond then
       if idx_val < split['val']:size()[1] then
         idx_val = idx_val + 1
         split['val'][idx_val] = i
-      else   
+      elseif idx_test < split['test']:size()[1] then
         idx_test = idx_test + 1
         split['test'][idx_test] = i
+      else
+        break
       end
     end
   end
