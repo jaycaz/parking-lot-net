@@ -120,14 +120,14 @@ local fcinprod = torch.prod(torch.Tensor(fcin))
 net:add(nn.View(fcinprod))
 net:add(nn.Linear(fcinprod, fc_layers[1]))             
 if params.batch_norm > 0 then
-  net:add(nn.SpatialBatchNormalization(fc_layers[1]))
+  net:add(nn.BatchNormalization(fc_layers[1]))
 end
 net:add(nn.ReLU())                       
 
 for i=2,#fc_layers do
   net:add(nn.Linear(fc_layers[i - 1], fc_layers[i]))
   if params.batch_norm > 0 then
-    net:add(nn.SpatialBatchNormalization(fc_layers[i]))
+    net:add(nn.BatchNormalization(fc_layers[i]))
   end
   net:add(nn.ReLU())
 end
