@@ -36,24 +36,13 @@ function DataLoader:__init(opt)
     self.cond_counts = {}
     local cond_no = resolve_labels(opt.train_cond1)
     local metadata = resolve_metadata(opt.train_cond1)
-<<<<<<< HEAD
-=======
-    count_cond1 = 0
-    count_cond2 = 0
 
-    -- Count images that satisfy cond1 and cond2
->>>>>>> 190c24f170c9798369f313209dade48e83505f8a
     for i=1,self.num_images do
       cond = self.h5_file:read(metadata):partial({i,i})[1]
       self.cond_counts[cond] = self.cond_counts[cond] + 1
     end
-<<<<<<< HEAD
     local count_cond = self.cond_counts[cond_no]
     count = {torch.floor(count_cond * 0.7), torch.floor(count_cond * 0.2), count_cond - torch.floor(count_cond * 0.7) - torch.floor(count_cond * 0.2)}
-=======
-    print(opt.train_cond1, count_cond1, opt.train_cond2, count_cond2)
-    count = {count_cond1, torch.floor(count_cond2 * 0.7), count_cond2 - torch.floor(count_cond2 * 0.7)}
->>>>>>> 190c24f170c9798369f313209dade48e83505f8a
     local split = {}
     split['train'] = torch.zeros(count[1])
     split['val'] = torch.zeros(count[2])
@@ -64,22 +53,12 @@ function DataLoader:__init(opt)
     local idx_val = 0
     local idx_test = 0
     for i=1,self.num_images do
-<<<<<<< HEAD
-      cond = self.h5_file:read('/meta_weather'):partial({i,i})[1]
+      cond = self.h5_file:read(metadata):partial({i,i})[1]
       if cond == cond_no then
         if idx_train < split['train']:size()[1] then
           idx_train = idx_train + 1
           split['train'][idx_train] = i
         elseif idx_val < split['val']:size()[1] then
-=======
-      cond = self.h5_file:read(metadata):partial({i,i})[1]
-      if cond == cond_no1 then
-        idx_train = idx_train + 1
-        split['train'][idx_train] = i
-      end
-      if cond == cond_no2 then
-        if idx_val < split['val']:size()[1] then
->>>>>>> 190c24f170c9798369f313209dade48e83505f8a
           idx_val = idx_val + 1
           split['val'][idx_val] = i
         else    
