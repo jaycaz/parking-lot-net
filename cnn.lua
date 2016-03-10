@@ -32,7 +32,9 @@ cmd:option('-batch_norm', 0)
 -- Output options
 cmd:option('-print_every', 1)
 cmd:option('-print_test', 0)
+cmd:option('-print_misclassified', 0)
 cmd:option('-save_model', 0)
+cmd:option('-print_confusion', 0)
 
 -- network architecture
 cmd:option('-filter_size', 5)
@@ -263,7 +265,7 @@ print(string.format("**%04f,%04f,%04f,%d,%04f,%d,%s,%s",
 
 -- Optionally, print test statistics
 if params.print_test == 1 then
-  local test, test_y = loader:getBatch{batch_size = NUM_VAL, split = 'test'}
+  local test, test_y, paths = loader:getBatch{batch_size = NUM_VAL, split = 'test', get_paths=true}
   local test_acc = stats.acc(net:double(), test:double(), test_y:int())
 
   print(string.format('Test Accuracy: %04f', test_acc))
@@ -272,6 +274,14 @@ if params.print_test == 1 then
   print(string.format("**%04f,%04f,%04f,%d,%04f,%d,%s,%s", 
                       test_acc, train_acc, params.learning_rate, params.batch_size, params.lr_decay_factor, 
                       params.lr_decay_every, params.train_set, params.test_set))
+
+  -- Also an option: print all the test files that were incorrectly labeled
+  if params.print_misclassified == 1 then
+    misclass_paths = stats.misclassified(net:double(), test:double(), paths, test_y:int())
+    for i, path in ipairs(misclass_paths) do
+      print(path)
+    end
+  end
 end
 
 -- Optionally, save model parameters
@@ -280,3 +290,15 @@ if params.save_model == 1 then
   torch.save(model_filename, net:float())
   print(string.format("Model parameters saved to: %s", model_filename))
 end
+
+-- Optionally, prjnt confusion matrix parameters for test set
+if params.print_confusion == 1 then
+  local test, test_y = loader:getBatch{batch_size = NUM_VAL, split = 'test'}
+  local conf = stats.confusion(net:double(), test:double(), test_y:int())
+
+  print('Confusion Matrix Statistics:')
+  for k,v in pairs(conf) do
+    print(string.format('%s: %f', k, v))
+  end
+end
+
