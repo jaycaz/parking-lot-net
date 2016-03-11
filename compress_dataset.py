@@ -58,7 +58,7 @@ else:
 
 print "Counting images..."
 for path, dirs, files in os.walk(data_root):
-    total_images += len(files)
+    total_images += len([f for f in files if f.endswith('.jpg')])
 print "Image count: ", total_images
 
 
@@ -169,7 +169,7 @@ with h5py.File(params['h5_name'], 'w') as hf:
                     if not os.path.isfile(xmlpath):
                         print "Warning: could not find file '{0}'".format(xmlpath)
                         continue
-                    count = count_spots(path + '/' + head + '.xml')
+                    count = count_spots(xmlpath) + 1 # Adding one to count because Torch requires 1-indexed class labels
                     #print "At {0}, empty {1}".format(os.path.join(path, f), count)
                     count_dset[img] = count
                     stats_count_spots[count] = stats_count_spots.setdefault(count, 0) + 1
@@ -189,7 +189,8 @@ with h5py.File(params['h5_name'], 'w') as hf:
                     sys.stdout.flush()
 
             # Increment image counters
-            step += 1
+            if ext == '.jpg':
+                step += 1
             if img >= image_count:
                 break
         if img >= image_count:
