@@ -24,7 +24,8 @@ function DataLoader:__init(opt)
   print("max_spots ".. opt.max_spots)
 
   self.split_ix = {}
-  if opt.train_cond == 'nil' then 
+  print(opt.weather_cond1)
+  if opt.weather_cond1 == nil then 
     -- separate out indexes for each of the provided splits
     self.split_ix['train'] = torch.randperm(torch.floor(self.num_images * 0.7))
     local offset = self.split_ix['train']:size()[1]
@@ -33,16 +34,23 @@ function DataLoader:__init(opt)
     self.split_ix['test'] = torch.randperm(torch.floor(self.num_images - offset)) + offset
     assert((self.split_ix['train']:size()[1] + self.split_ix['val']:size()[1] + self.split_ix['test']:size()[1]) == self.num_images, 'number of images in train/val/test do not match number of images')
   else
-    self.cond_counts = {}
-    local cond_no = resolve_labels(opt.train_cond1)
+    local cond_no1, cond_no2 = resolve_labels(opt.train_cond1, opt.train_cond2)
     local metadata = resolve_metadata(opt.train_cond1)
+    count_cond1 = 0
+    count_cond2 = 0
 
+    -- Count images that satisfy cond1 and cond2
     for i=1,self.num_images do
       cond = self.h5_file:read(metadata):partial({i,i})[1]
-      self.cond_counts[cond] = self.cond_counts[cond] + 1
+      if cond == cond_no1 then
+        count_cond1 = count_cond1 + 1
+      end
+      if cond == cond_no2 then
+        count_cond2 = count_cond2 + 1
+      end
     end
-    local count_cond = self.cond_counts[cond_no]
-    count = {torch.floor(count_cond * 0.7), torch.floor(count_cond * 0.2), count_cond - torch.floor(count_cond * 0.7) - torch.floor(count_cond * 0.2)}
+    print(opt.train_cond1, count_cond1, opt.train_cond2, count_cond2)
+    count = {count_cond1, torch.floor(count_cond2 * 0.7), count_cond2 - torch.floor(count_cond2 * 0.7)}
     local split = {}
     split['train'] = torch.zeros(count[1])
     split['val'] = torch.zeros(count[2])
@@ -54,14 +62,15 @@ function DataLoader:__init(opt)
     local idx_test = 0
     for i=1,self.num_images do
       cond = self.h5_file:read(metadata):partial({i,i})[1]
-      if cond == cond_no then
-        if idx_train < split['train']:size()[1] then
-          idx_train = idx_train + 1
-          split['train'][idx_train] = i
-        elseif idx_val < split['val']:size()[1] then
+      if cond == cond_no1 then
+        idx_train = idx_train + 1
+        split['train'][idx_train] = i
+      end
+      if cond == cond_no2 then
+        if idx_val < split['val']:size()[1] then
           idx_val = idx_val + 1
           split['val'][idx_val] = i
-        else dx_test < split['test']:size()[1] then   
+        elseif dx_test < split['test']:size()[1] then   
           idx_test = idx_test + 1
           split['test'][idx_test] = i
         else break
@@ -122,7 +131,6 @@ function DataLoader:__init(opt)
     print('Channel ' .. i .. ', Mean: ' .. self.mean[i])
   end
 end
-
 
 function DataLoader:reloadTestData(split)
   local cond = resolve_labels(split)
@@ -185,9 +193,7 @@ function DataLoader:getBatch(opt)
   
   local img_batch_raw = torch.zeros(batch_size, self.num_channels, self.height, self.width)
   local label_batch = torch.zeros(batch_size)
-  local paths = {}
   local max_index = split_ix:size()[1]
-
   
   for i=1,batch_size do
     local ri = self.iterators[split] -- get next index from iterator
@@ -204,36 +210,11 @@ function DataLoader:getBatch(opt)
     img_batch_raw[i] = img
      
     label = self.h5_file:read('/' .. self.label_name):partial({ix,ix})[1]
-   
-    -- Optionally store path
-    if opt.get_paths == true then
-      local year = self.h5_file:read('/meta_year'):partial({ix, ix})[1]
-      local month = self.h5_file:read('/meta_month'):partial({ix, ix})[1]
-      local day = self.h5_file:read('/meta_day'):partial({ix, ix})[1]
-      local hour = self.h5_file:read('/meta_hour'):partial({ix, ix})[1]
-      local minute = self.h5_file:read('/meta_minute'):partial({ix, ix})[1]
-      local second = self.h5_file:read('/meta_second'):partial({ix, ix})[1]
-      local space = self.h5_file:read('/meta_space'):partial({ix, ix})[1]
-
-      local occupied = self.h5_file:read('/meta_occupied'):partial({ix, ix})[1]
-      if occupied == 1 then occupied = 'Empty' else occupied = 'Occupied' end
-      local lot = self.h5_file:read('/meta_lot'):partial({ix, ix})[1]
-      if lot == 1 then lot = 'PUC' elseif lot == 2 then lot = 'UFPR04' else lot = 'UFPR05' end
-      local weather = self.h5_file:read('/meta_weather'):partial({ix, ix})[1]
-      if weather == 1 then weather = 'Sunny' elseif weather == 2 then weather = 'Cloudy' else weather = 'Rainy' end
-
-      local path = string.format('%s/%s/%04d-%02d-%02d/%s/%04d-%02d-%02d_%02d_%02d_%02d#%03d.jpg',
-                    lot, weather, year, month, day, occupied, year, month, day, hour, minute, second, space)
-      --print(path)
-      table.insert(paths, path)
-    end
-
-    if self.max_spots ~= 0 then
-      if label > self.max_spots then
+    if self.max_spots ~= 0 and label > self.max_spots then
         label = self.max_spots
-      end
     end
     label_batch[i] = label
+    print(label_batch[i])
   end
 
   -- subtract mean
@@ -243,11 +224,7 @@ function DataLoader:getBatch(opt)
     end
   end
 
-  if opt.get_paths == true then
-    return img_batch_raw, label_batch, paths
-  else
-    return img_batch_raw, label_batch
-  end
+  return img_batch_raw, label_batch
 end
 
 
@@ -263,22 +240,37 @@ end
 
 
 
-function resolve_labels(cond) 
+function resolve_labels(cond1, cond2) 
   local no1 = 0
-  if cond == 'sunny' then
-    no = 1
-  elseif cond == 'cloudy' then
-    no = 2
-  elseif cond == 'rainy' then
-    no = 3
+  local no2 = 0
+  if cond1 == 'sunny' then
+    no1 = 1
+  elseif cond1 == 'cloudy' then
+    no1 = 2
+  elseif cond1 == 'rainy' then
+    no1 = 3
   end
-  if cond == 'PUC' then
-    no = 1
-  elseif cond == 'UFPR04' then
-    no = 2
-  elseif cond == 'UFPR05' then
-    no = 3
+  if cond2 == 'sunny' then
+    no2 = 1
+  elseif cond2 == 'cloudy' then
+    no2 = 2
+  elseif cond2 == 'rainy' then
+    no2 = 3
   end
-  assert(no ~= 0, 'Train set conditions could not be resolved to label')
-  return no
+  if cond1 == 'PUC' then
+    no1 = 1
+  elseif cond1 == 'UFPR04' then
+    no1 = 2
+  elseif cond1 == 'UFPR05' then
+    no1 = 3
+  end
+  if cond2 == 'PUC' then
+    no2 = 1
+  elseif cond2 == 'UFPR04' then
+    no2 = 2
+  elseif cond2 == 'UFPR05' then
+    no2 = 3
+  end
+  assert(no1 ~= 0 and no2 ~= 0, 'Train set conditions could not be resolved to labels')
+  return no1, no2
 end

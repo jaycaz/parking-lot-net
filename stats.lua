@@ -65,10 +65,11 @@ end
 
 function classify(model, data)
   local BATCH_SIZE = 1000
-  local score0 = model:forward(data[1])
+  local score0 = model:forward(data:narrow(1,1,1))
   local data_size = data:size(1)
   local num_labels = score0:size(1)
   local scores = torch.Tensor(data_size, num_labels)
+
 
   -- Process data in batches
   local i = 1
