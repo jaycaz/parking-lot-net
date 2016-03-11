@@ -21,7 +21,6 @@ parser.add_argument('--add_prop', type=float, default=1.0, help='Proportion of i
 parser.add_argument('--h5_name', default='pklot.hdf5', help='Name of HDF5 file to create')
 parser.add_argument('--count_spots', action='store_true', help='If used, will assume the lot dset is used and will add empty space counts to h5 file')
 parser.add_argument('--seed', type=int, default=-1)
-parser.add_argument('--choose_by_lot', action='store_true', help='If used, choosing which image to add will be done by lot rather than space')
 
 params = vars(parser.parse_args())
 #print params
@@ -58,7 +57,7 @@ else:
     data_root = seg_root
 
 print "Counting images..."
-for path, dirs, files in os.walk(seg_root):
+for path, dirs, files in os.walk(data_root):
     total_images += len(files)
 print "Image count: ", total_images
 
@@ -123,17 +122,17 @@ with h5py.File(params['h5_name'], 'w') as hf:
 
         # Add image files
         for f in files:
-            _, ext = os.path.splitext(f)
+            head, ext = os.path.splitext(f)
             if image_mask[step] == 1 and ext == '.jpg':
                 #print (files)
                 # Get Date and Time metadata
-                date = f[:f.find('_')]
+                date = head[:head.find('_')]
                 year, month, day = tuple(date.split('-'))
 
-                time = f[f.find('_') + 1: f.find('#')]
+                time = head[head.find('_') + 1: head.find('#')]
                 hour, minute, second = tuple(time.split('_'))
 
-                space = int(f[f.find('#') + 1:f.find('#') + 4])
+                space = int(head[head.find('#') + 1:head.find('#') + 4])
 
                 # Extract image data, resize and add to file
                 im = Image.open(os.path.join(path, f))
@@ -166,13 +165,13 @@ with h5py.File(params['h5_name'], 'w') as hf:
                 stats[weather] += 1
 
                 if params['count_spots']:
-                    xmlpath = os.path.join(path, f[:-3] + 'xml')
+                    xmlpath = os.path.join(path, head + '.xml')
                     if not os.path.isfile(xmlpath):
                         print "Warning: could not find file '{0}'".format(xmlpath)
                         continue
-                    count = count_spots(path + '/' + f[:-3] + 'xml')
+                    count = count_spots(path + '/' + head + '.xml')
                     #print "At {0}, empty {1}".format(os.path.join(path, f), count)
-                    count_dset[i] = count
+                    count_dset[img] = count
                     stats_count_spots[count] = stats_count_spots.setdefault(count, 0) + 1
 
 #                 if np.random.sample() < 1e-3:
