@@ -214,7 +214,7 @@ function DataLoader:getBatch(opt)
         label = self.max_spots
     end
     label_batch[i] = label
-    print(label_batch[i])
+    --print(label_batch[i])
   end
 
   -- subtract mean

@@ -243,44 +243,47 @@ end -- Finished training
 
 
 -- Print final train and validation statistics
-print(string.format('Running model on train set (%d images)...', NUM_TRAIN))
-local train, train_y = loader:getBatch{batch_size = NUM_VAL, split = 'train'}
+--print(string.format('Running model on train set (%d images)...', NUM_TRAIN))
+local train, train_y = loader:getBatch{batch_size = NUM_TRAIN, split = 'train'}
 local train_acc = stats.acc(net:double(), train:double(), train_y:int())
 
-print(string.format('Train Accuracy: %04f', train_acc))
+--print(string.format('Train Accuracy: %04f', train_acc))
 
-print(string.format('Running model on validation set (%d images)...', NUM_VAL))
+--print(string.format('Running model on validation set (%d images)...', NUM_VAL))
 
 local val, val_y = loader:getBatch{batch_size = NUM_VAL, split = 'val'}
 local val_acc = stats.acc(net:double(), val:double(), val_y:int())
 
 
-print(string.format('Val Accuracy: %04f', val_acc))
+-- Optionally, print test statistics
+local test_acc = -1
+if params.print_test == 1 then
+  local test, test_y, paths = loader:getBatch{batch_size = NUM_TEST, split = 'test', get_paths=true}
+  test_acc = stats.acc(net:double(), test:double(), test_y:int())
+end
 
-print("*Val Acc,Train Acc,Learn Rate,Batch Size,LR Decay Rate,LR Decay Every,Weather Train,Weather Test")
-print(string.format("**%04f,%04f,%04f,%d,%04f,%d,%s,%s", 
-                    val_acc, train_acc, params.learning_rate, params.batch_size, params.lr_decay_factor, 
+print("**Train Acc,Val Acc,Test Acc,Learn Rate,Batch Size,LR Decay Rate,LR Decay Every,Weather Train,Weather Test")
+print(string.format("*%04f,%04f,%04f,%04f,%d,%04f,%d,%s,%s", 
+                    train_acc, val_acc, test_acc, params.learning_rate, params.batch_size, params.lr_decay_factor, 
                     params.lr_decay_every, params.train_set, params.test_set))
 
 
--- Optionally, print test statistics
-if params.print_test == 1 then
-  local test, test_y, paths = loader:getBatch{batch_size = NUM_VAL, split = 'test', get_paths=true}
-  local test_acc = stats.acc(net:double(), test:double(), test_y:int())
+--if params.print_test == 1 then
+  --local test, test_y, paths = loader:getBatch{batch_size = NUM_VAL, split = 'test', get_paths=true}
+  --local test_acc = stats.acc(net:double(), test:double(), test_y:int())
 
-  print(string.format('Test Accuracy: %04f', test_acc))
+  --print(string.format('Test Accuracy: %04f', test_acc))
 
-  print("*Test Acc,Train Acc,Learn Rate,Batch Size,LR Decay Rate,LR Decay Every,Weather Train,Weather Test")
-  print(string.format("**%04f,%04f,%04f,%d,%04f,%d,%s,%s", 
-                      test_acc, train_acc, params.learning_rate, params.batch_size, params.lr_decay_factor, 
-                      params.lr_decay_every, params.train_set, params.test_set))
+  --print("*Test Acc,Train Acc,Learn Rate,Batch Size,LR Decay Rate,LR Decay Every,Weather Train,Weather Test")
+  --print(string.format("**%04f,%04f,%04f,%d,%04f,%d,%s,%s", 
+                      --test_acc, train_acc, params.learning_rate, params.batch_size, params.lr_decay_factor, 
+                      --params.lr_decay_every, params.train_set, params.test_set))
 
-  -- Also an option: print all the test files that were incorrectly labeled
-  if params.print_misclassified == 1 then
-    misclass_paths = stats.misclassified(net:double(), test:double(), paths, test_y:int())
-    for i, path in ipairs(misclass_paths) do
-      print(path)
-    end
+-- Also an option: print all the test files that were incorrectly labeled
+if params.print_misclassified == 1 then
+  misclass_paths = stats.misclassified(net:double(), test:double(), paths, test_y:int())
+  for i, path in ipairs(misclass_paths) do
+    print(path)
   end
 end
 
@@ -291,9 +294,9 @@ if params.save_model == 1 then
   print(string.format("Model parameters saved to: %s", model_filename))
 end
 
--- Optionally, prjnt confusion matrix parameters for test set
+-- Optionally, print confusion matrix parameters for test set
 if params.print_confusion == 1 then
-  local test, test_y = loader:getBatch{batch_size = NUM_VAL, split = 'test'}
+  local test, test_y = loader:getBatch{batch_size = NUM_TEST, split = 'test'}
   local conf = stats.confusion(net:double(), test:double(), test_y:int())
 
   print('Confusion Matrix Statistics:')

@@ -6,10 +6,9 @@ local stats = {}
 -- Runs forward pass of <model> on <data> and returns accuracy
 -- based on groud truth labels <labels>
 function stats.acc(model, data, labels)
-
-
   -- Find number of generated labels that match ground truth labels
   local indices = classify(model, data)
+
   local correct = torch.sum(torch.eq(indices, labels:long()))
   local num_labels = labels:size(1)
 
@@ -25,7 +24,7 @@ end
 -- Occupied counts as positive
 function stats.confusion(model, data, labels)
 
-  local score0 = model:forward(data[1])
+  local score0 = model:forward(data:narrow(1,1,1))
   local data_size = data:size(1)
   local num_labels = score0:size(1)
 
@@ -64,12 +63,11 @@ end
 
 
 function classify(model, data)
-  local BATCH_SIZE = 1000
+  local BATCH_SIZE = 100
   local score0 = model:forward(data:narrow(1,1,1))
   local data_size = data:size(1)
   local num_labels = score0:size(1)
   local scores = torch.Tensor(data_size, num_labels)
-
 
   -- Process data in batches
   local i = 1
@@ -87,6 +85,70 @@ function classify(model, data)
   return indices
 end
 
+
+-- For counter CNN, get histogram of choices vs ground truth
+function stats.confusion_counter(model, data, labels)
+
+  local score0 = model:forward(data:narrow(1,1,1))
+  local data_size = data:size(1)
+  local num_labels = score0:size(1)
+
+  local indices = classify(model, data)
+
+  local confusion_counts = {}
+  for i = 1, num_labels do
+    confusion_counts[i] = {}
+    for j = 1, num_labels do
+      confusion_counts[i][j] = 0
+    end
+  end  
+
+  for i = 1, data_size do
+    local gt = labels[i]
+    local guess = indices[i]
+    confusion_counts[gt][guess] = confusion_counts[gt][guess] + 1
+  end
+
+  return confusion_counts
+  
+end
+
+--For counter CNN, get histogram of errors
+function stats.error_matrix(model, data, labels)
+
+  local counts = true
+
+  local score0 = model:forward(data:narrow(1,1,1))
+  local data_size = data:size(1)
+  local num_labels = score0:size(1)
+
+  local indices = classify(model, data)
+
+  error_counts = {}
+
+  for i = -num_labels, num_labels do
+    error_counts[i] = 0
+  end
+
+  for i = 1, data_size do
+    local gt = labels[i]
+    local guess = indices[i]
+    local err = gt - guess
+    error_counts[err] = error_counts[err] + 1
+  end
+
+  local error_props = {} 
+  for k,v in pairs(error_counts) do
+    error_props[k] = v / data_size
+  end
+
+  if counts then
+    return error_counts
+  else
+    return error_props
+  end
+  
+end
 
 return stats
 
