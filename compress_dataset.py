@@ -103,6 +103,7 @@ with h5py.File(params['h5_name'], 'w') as hf:
     step = 0 # Number of steps through directory
     img = 0 # Number of images actually added
     for path, dirs, files in os.walk(data_root):
+        
         #if len(files) == 0:
         #    continue
 
@@ -124,7 +125,7 @@ with h5py.File(params['h5_name'], 'w') as hf:
         for f in files:
             head, ext = os.path.splitext(f)
             if image_mask[step] == 1 and ext == '.jpg':
-                #print (files)
+                print (f)
                 # Get Date and Time metadata
                 date = head[:head.find('_')]
                 year, month, day = tuple(date.split('-'))
