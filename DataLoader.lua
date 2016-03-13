@@ -34,15 +34,20 @@ function DataLoader:__init(opt)
     assert((self.split_ix['train']:size()[1] + self.split_ix['val']:size()[1] + self.split_ix['test']:size()[1]) == self.num_images, 'number of images in train/val/test do not match number of images')
   else
     self.cond_counts = {}
-    local cond_no = resolve_labels(opt.train_cond1)
-    local metadata = resolve_metadata(opt.train_cond1)
+    local cond_no = resolve_labels(opt.train_cond)
+    local metadata = resolve_metadata(opt.train_cond)
 
     for i=1,self.num_images do
+print(metadata)
       cond = self.h5_file:read(metadata):partial({i,i})[1]
+      if self.cond_counts[cond] == nil then
+	self.cond_counts[cond] = 0
+      end
       self.cond_counts[cond] = self.cond_counts[cond] + 1
     end
     local count_cond = self.cond_counts[cond_no]
-    count = {torch.floor(count_cond * 0.7), torch.floor(count_cond * 0.2), count_cond - torch.floor(count_cond * 0.7) - torch.floor(count_cond * 0.2)}
+ print(self.cond_counts, cond_no)
+    local count = {torch.floor(count_cond * 0.7), torch.floor(count_cond * 0.2), count_cond - torch.floor(count_cond * 0.7) - torch.floor(count_cond * 0.2)}
     local split = {}
     split['train'] = torch.zeros(count[1])
     split['val'] = torch.zeros(count[2])
@@ -61,7 +66,7 @@ function DataLoader:__init(opt)
         elseif idx_val < split['val']:size()[1] then
           idx_val = idx_val + 1
           split['val'][idx_val] = i
-        else dx_test < split['test']:size()[1] then   
+        elseif dx_test < split['test']:size()[1] then   
           idx_test = idx_test + 1
           split['test'][idx_test] = i
         else break
