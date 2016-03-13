@@ -62,7 +62,7 @@ end
 
 -- For counter CNN, get histogram of ground truth vs. choices
 -- row is what the gt was, col is what the model guessed
-function stats.confusion_counter(guesses, labels, num_labels)
+function stats.gt_vs_guess(guesses, labels, num_labels)
   data_size = labels:size(1)
   --num_labels = labels:size(2)
 
@@ -78,6 +78,9 @@ function stats.confusion_counter(guesses, labels, num_labels)
     local gt = labels[i]
     local guess = guesses[i]
     confusion_counts[gt][guess] = confusion_counts[gt][guess] + 1
+    if labels[i] == 1 or guesses[i] == 1 then
+      print("1")
+    end
   end
 
   return confusion_counts

@@ -3,17 +3,19 @@
 require 'torch'
 require 'nn'
 require 'DataLoader'
+require 'io'
 stats = require("stats")
 
 params = {
   h5_file = '/home/jordan/Documents/parking-lot-net/h5/lots.hdf5',
+  --h5_file = '/home/jordan/Documents/parking-lot-net/h5/lots-tiny.hdf5',
   model_path = '/home/jordan/Documents/parking-lot-net/pretrained/counter_final',
-  train_set = 'nil',
+  train_set = nil,
   labels = 'meta_count_spots',
   max_spots = 20
 }
 
-local loader = DataLoader{h5_file = params.h5_file, train_cond=params.train_set, labels=params.labels, max_spots=params.max_spots}
+local loader = DataLoader{h5_file = params.h5_file, labels=params.labels, max_spots=params.max_spots}
 
 
 NUM_TRAIN = loader:getTrainSize()
@@ -52,14 +54,16 @@ print(string.format("*%04f,%04f,%04f", train_acc, val_acc, test_acc))
 --end
 
 -- Print confusion matrix parameters for test set
-local conf = stats.confusion_counter(test_idx, test_gt, num_labels)
+local conf = stats.gt_vs_guess(test_idx, test_gt, num_labels)
 
 print('Confusion Matrix Statistics:')
 for k1,v1 in pairs(conf) do
+  print('')
   for k2,v2 in pairs(v1) do
-    print(string.format('%s,%s,%f', k1, k2, v2))
+    io.write(string.format("%d,", v2))
   end
 end
+print('')
 
 -- Print error histogram
   --local val, val_y = loader:getBatch{batch_size = NUM_VAL, split = 'val'}

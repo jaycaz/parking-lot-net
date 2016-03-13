@@ -266,7 +266,9 @@ function DataLoader:getBatch(opt)
      
     label = self.h5_file:read('/' .. self.label_name):partial({ix,ix})[1]
     if self.max_spots ~= 0 and label > self.max_spots then
-        label = self.max_spots
+        --label = self.max_spots + 1
+        label = self.max_spots 
+        -- TODO: Swap the above lines when done with the CS231N report. This is a bug that should be phased out
     end
     label_batch[i] = label
     --print(label_batch[i])
