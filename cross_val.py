@@ -14,7 +14,7 @@ with open('crossval{0}.txt'.format(int(time.time())), 'w') as outfile:
     for i in xrange(ITERS):
         lr = np.power(10., np.random.uniform(-6, -1))
         bsize = np.random.choice(np.array([25, 50, 100]))
-        lrd = np.random.choice(np.array([0.9, 0.95, 0.98, 0.99]))
+        lrd = np.random.choice(np.array([0.9, 0.95, 0.99, 1.00]))
         lrd_every = np.random.choice(np.array([1, 3, 5]))
         
         # TODO: add choices for conv_layers and fc_layers
