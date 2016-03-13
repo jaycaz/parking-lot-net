@@ -21,9 +21,12 @@ parser.add_argument('--add_prop', type=float, default=1.0, help='Proportion of i
 parser.add_argument('--h5_name', default='pklot.hdf5', help='Name of HDF5 file to create')
 parser.add_argument('--count_spots', action='store_true', help='If used, will assume the lot dset is used and will add empty space counts to h5 file')
 parser.add_argument('--seed', type=int, default=-1)
+parser.add_argument('--add_paths', action='store_true')
 
 params = vars(parser.parse_args())
 #print params
+
+MAX_PATH_SIZE = 64
 
 if params['count_spots']:
     WIDTH = 256
@@ -96,14 +99,18 @@ with h5py.File(params['h5_name'], 'w') as hf:
     
     occupied_dset = hf.create_dataset('meta_occupied', (image_count,), dtype='i')
     weather_dset = hf.create_dataset('meta_weather', (image_count,), dtype='i')
+    if params['add_paths']:
+        stype = 'S{0}'.format(MAX_PATH_SIZE)
+        paths_dset = hf.create_dataset('meta_path', (image_count,), dtype=stype)
 
     if params['count_spots']:
         count_dset = hf.create_dataset('meta_count_spots', (image_count,), dtype='i')
 
     step = 0 # Number of steps through directory
     img = 0 # Number of images actually added
+    max_path_size = 0
     for path, dirs, files in os.walk(data_root):
-        
+        rel_path = path[len(data_root):]
         #if len(files) == 0:
         #    continue
 
@@ -164,6 +171,15 @@ with h5py.File(params['h5_name'], 'w') as hf:
                 stats[occupied] += 1
                 weather_dset[img] = WEATHER.index(weather) + 1
                 stats[weather] += 1
+
+                if params['add_paths']:
+                    f_rel_path = os.path.join(rel_path, f)
+                    paths_dset[img] = f_rel_path
+
+                    # Uncomment to find maximum path size in dataset
+                    if len(f_rel_path) > max_path_size:
+                        max_path_size = len(f_rel_path)
+                        print max_path_size
 
                 if params['count_spots']:
                     xmlpath = os.path.join(path, head + '.xml')
