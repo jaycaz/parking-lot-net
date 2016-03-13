@@ -73,7 +73,7 @@ function DataLoader:__init(opt)
       end
     end
 
-    self.num_images = count[1] + count[2] + count[3]
+    --self.num_images = count[1] + count[2] + count[3]
     
     sets = {'train', 'val', 'test'}
     idxs = {idx_train, idx_val, idx_test}
@@ -189,7 +189,7 @@ function DataLoader:__init(opt)
 end
 
 function DataLoader:reloadTestData(split)
-  print(string.format("Reloading test data for split '%s'", split))
+  --print(string.format("Reloading test data for split '%s'", split))
   local cond = resolve_labels(split)
   local metadata = resolve_metadata(split)
   count = {torch.floor(self.cond_counts[cond] * 0.2), torch.floor(self.cond_counts[cond] * 0.1)}
@@ -197,8 +197,6 @@ function DataLoader:reloadTestData(split)
   split['val'] = torch.zeros(count[1])
   split['test'] = torch.zeros(count[2])
 
-  self.num_images = self.split_ix['train']:size()[1] + count[1] + count[2]
-   
   local idx_val = 0
   local idx_test = 0
   for i=1,self.num_images do
@@ -214,7 +212,7 @@ function DataLoader:reloadTestData(split)
         break
       end
     end
-  end
+  end 
 
   sets = {'val', 'test'}
     for i=1,#sets do
