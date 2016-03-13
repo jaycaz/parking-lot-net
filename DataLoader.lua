@@ -39,6 +39,7 @@ function DataLoader:__init(opt)
     local metadata = resolve_metadata(opt.train_cond)
 
     for i=1,self.num_images do
+print(metadata)
       cond = self.h5_file:read(metadata):partial({i,i})[1]
       if not self.cond_counts[cond] then
         self.cond_counts[cond] = 0
@@ -46,7 +47,8 @@ function DataLoader:__init(opt)
       self.cond_counts[cond] = self.cond_counts[cond] + 1
     end
     local count_cond = self.cond_counts[cond_no]
-    count = {torch.floor(count_cond * 0.7), torch.floor(count_cond * 0.2), count_cond - torch.floor(count_cond * 0.7) - torch.floor(count_cond * 0.2)}
+ print(self.cond_counts, cond_no)
+    local count = {torch.floor(count_cond * 0.7), torch.floor(count_cond * 0.2), count_cond - torch.floor(count_cond * 0.7) - torch.floor(count_cond * 0.2)}
     local split = {}
     split['train'] = torch.zeros(count[1])
     split['val'] = torch.zeros(count[2])
