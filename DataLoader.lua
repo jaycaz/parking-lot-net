@@ -24,8 +24,8 @@ function DataLoader:__init(opt)
   print("max_spots ".. opt.max_spots)
 
   self.split_ix = {}
-  print(opt.weather_cond1)
-  if opt.weather_cond1 == nil then 
+  print(string.format("train %s, test %s", opt.train_cond, opt.test_cond))
+  if not opt.train_cond then 
     -- separate out indexes for each of the provided splits
     self.split_ix['train'] = torch.randperm(torch.floor(self.num_images * 0.7))
     local offset = self.split_ix['train']:size()[1]
@@ -34,23 +34,19 @@ function DataLoader:__init(opt)
     self.split_ix['test'] = torch.randperm(torch.floor(self.num_images - offset)) + offset
     assert((self.split_ix['train']:size()[1] + self.split_ix['val']:size()[1] + self.split_ix['test']:size()[1]) == self.num_images, 'number of images in train/val/test do not match number of images')
   else
-    local cond_no1, cond_no2 = resolve_labels(opt.train_cond1, opt.train_cond2)
-    local metadata = resolve_metadata(opt.train_cond1)
-    count_cond1 = 0
-    count_cond2 = 0
+    self.cond_counts = {}
+    local cond_no = resolve_labels(opt.train_cond)
+    local metadata = resolve_metadata(opt.train_cond)
 
-    -- Count images that satisfy cond1 and cond2
     for i=1,self.num_images do
       cond = self.h5_file:read(metadata):partial({i,i})[1]
-      if cond == cond_no1 then
-        count_cond1 = count_cond1 + 1
+      if not self.cond_counts[cond] then
+        self.cond_counts[cond] = 0
       end
-      if cond == cond_no2 then
-        count_cond2 = count_cond2 + 1
-      end
+      self.cond_counts[cond] = self.cond_counts[cond] + 1
     end
-    print(opt.train_cond1, count_cond1, opt.train_cond2, count_cond2)
-    count = {count_cond1, torch.floor(count_cond2 * 0.7), count_cond2 - torch.floor(count_cond2 * 0.7)}
+    local count_cond = self.cond_counts[cond_no]
+    count = {torch.floor(count_cond * 0.7), torch.floor(count_cond * 0.2), count_cond - torch.floor(count_cond * 0.7) - torch.floor(count_cond * 0.2)}
     local split = {}
     split['train'] = torch.zeros(count[1])
     split['val'] = torch.zeros(count[2])
@@ -62,15 +58,14 @@ function DataLoader:__init(opt)
     local idx_test = 0
     for i=1,self.num_images do
       cond = self.h5_file:read(metadata):partial({i,i})[1]
-      if cond == cond_no1 then
-        idx_train = idx_train + 1
-        split['train'][idx_train] = i
-      end
-      if cond == cond_no2 then
-        if idx_val < split['val']:size()[1] then
+      if cond == cond_no then
+        if idx_train < split['train']:size()[1] then
+          idx_train = idx_train + 1
+          split['train'][idx_train] = i
+        elseif idx_val < split['val']:size()[1] then
           idx_val = idx_val + 1
           split['val'][idx_val] = i
-        elseif dx_test < split['test']:size()[1] then   
+        elseif idx_test < split['test']:size()[1] then   
           idx_test = idx_test + 1
           split['test'][idx_test] = i
         else break
@@ -95,6 +90,67 @@ function DataLoader:__init(opt)
       end
     end
   end
+--     local cond_no1, cond_no2 = resolve_labels(opt.train_cond, opt.test_cond)
+--     local metadata = resolve_metadata(opt.train_cond)
+--     count_cond1 = 0
+--     count_cond2 = 0
+-- 
+--     -- Count images that satisfy cond1 and cond2
+--     for i=1,self.num_images do
+--       cond = self.h5_file:read(metadata):partial({i,i})[1]
+--       if cond == cond_no1 then
+--         count_cond1 = count_cond1 + 1
+--       end
+--       if cond == cond_no2 then
+--         count_cond2 = count_cond2 + 1
+--       end
+--     end
+--     print(opt.train_cond1, count_cond1, opt.train_cond2, count_cond2)
+--     count = {count_cond1, torch.floor(count_cond2 * 0.7), count_cond2 - torch.floor(count_cond2 * 0.7)}
+--     local split = {}
+--     split['train'] = torch.zeros(count[1])
+--     split['val'] = torch.zeros(count[2])
+--     split['test'] = torch.zeros(count[3])
+-- 
+--     -- Mark indices that should be added to each set
+--     local idx_train = 0
+--     local idx_val = 0
+--     local idx_test = 0
+--     for i=1,self.num_images do
+--       cond = self.h5_file:read(metadata):partial({i,i})[1]
+--       if cond == cond_no1 then
+--         idx_train = idx_train + 1
+--         split['train'][idx_train] = i
+--       end
+--       if cond == cond_no2 then
+--         if idx_val < split['val']:size()[1] then
+--           idx_val = idx_val + 1
+--           split['val'][idx_val] = i
+--         elseif idx_test < split['test']:size()[1] then   
+--           idx_test = idx_test + 1
+--           split['test'][idx_test] = i
+--         else break
+--         end
+--       end
+--     end
+-- 
+--     self.num_images = count[1] + count[2] + count[3]
+--     
+--     sets = {'train', 'val', 'test'}
+--     idxs = {idx_train, idx_val, idx_test}
+-- 
+--     assert(idx_train == count[1] and idx_val == count[2] and idx_test == count[3],
+--             string.format("Indexes for weather conditions were not counted up correctly:\n(%d, %d, %d) vs. (%d, %d, %d)",
+--             count[1], count[2], count[3], idx_train, idx_val, idx_test))
+-- 
+--     for i=1,#sets do
+--       self.split_ix[sets[i]] = torch.zeros(count[i])
+--       local perm = torch.randperm(count[i])
+--       for j=1,count[i] do
+--         self.split_ix[sets[i]][j] = split[sets[i]][perm[j]]
+--       end
+--     end
+--   end
   
   -- for debugging
   -- print(self.split_ix['train']:size()[1], self.split_ix['val']:size()[1], self.split_ix['test']:size()[1])
@@ -133,6 +189,7 @@ function DataLoader:__init(opt)
 end
 
 function DataLoader:reloadTestData(split)
+  print(string.format("Reloading test data for split '%s'", split))
   local cond = resolve_labels(split)
   local metadata = resolve_metadata(split)
   count = {torch.floor(self.cond_counts[cond] * 0.2), torch.floor(self.cond_counts[cond] * 0.1)}
@@ -240,37 +297,22 @@ end
 
 
 
-function resolve_labels(cond1, cond2) 
-  local no1 = 0
-  local no2 = 0
-  if cond1 == 'sunny' then
-    no1 = 1
-  elseif cond1 == 'cloudy' then
-    no1 = 2
-  elseif cond1 == 'rainy' then
-    no1 = 3
+function resolve_labels(cond)
+  local num = 0
+  if cond == 'sunny' then
+    num = 1
+  elseif cond == 'cloudy' then
+    num = 2
+  elseif cond == 'rainy' then
+    num = 3
   end
-  if cond2 == 'sunny' then
-    no2 = 1
-  elseif cond2 == 'cloudy' then
-    no2 = 2
-  elseif cond2 == 'rainy' then
-    no2 = 3
+  if cond == 'PUC' then
+    num = 1
+  elseif cond == 'UFPR04' then
+    num = 2
+  elseif cond == 'UFPR05' then
+    num = 3
   end
-  if cond1 == 'PUC' then
-    no1 = 1
-  elseif cond1 == 'UFPR04' then
-    no1 = 2
-  elseif cond1 == 'UFPR05' then
-    no1 = 3
-  end
-  if cond2 == 'PUC' then
-    no2 = 1
-  elseif cond2 == 'UFPR04' then
-    no2 = 2
-  elseif cond2 == 'UFPR05' then
-    no2 = 3
-  end
-  assert(no1 ~= 0 and no2 ~= 0, 'Train set conditions could not be resolved to labels')
-  return no1, no2
+  assert(num ~= 0, 'Train set conditions could not be resolved to labels')
+  return num
 end

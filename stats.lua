@@ -9,6 +9,7 @@ stats = {}
 function stats.acc(guesses, labels, num_labels)
   -- Find number of generated labels that match ground truth labels
   data_size = labels:size(1)
+  assert(data_size > 0, "Accuracy cannot be computed on an empty list")
   --num_labels = labels:size(2)
 
   correct = torch.sum(torch.eq(guesses, labels:long()))
@@ -118,10 +119,11 @@ function stats.error_matrix(guesses, labels, num_labels)
   
 end
 
+-- Load data in batches and pass through pretrained model
 function stats.classify(model, loader, split)
   local BATCH_SIZE = 100
 
-  local data_size = data_size(loader, split)
+  local data_size = stats.data_size(loader, split)
 
   data0, _ = loader:getBatch{batch_size = 1, split = split}
   local score0 = model:forward(data0:narrow(1,1,1))
@@ -157,7 +159,7 @@ function stats.classify(model, loader, split)
   return guesses, gt, num_labels
 end
 
-function data_size(loader, split)
+function stats.data_size(loader, split)
   local size = -1
   if split == 'train' then
     size = loader:getTrainSize()

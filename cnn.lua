@@ -29,11 +29,14 @@ cmd:option('-momentum', 0.9)
 cmd:option('-batch_size', 25)
 cmd:option('-batch_norm', 0)
 
+-- Model save/load
+cmd:option('-load_model', 'nil')
+cmd:option('-save_model', 'nil')
+
 -- Output options
 cmd:option('-print_every', 1)
 cmd:option('-print_test', 0)
 cmd:option('-print_misclassified', 0)
-cmd:option('-save_model', 0)
 cmd:option('-print_confusion', 0)
 
 -- network architecture
@@ -44,8 +47,13 @@ cmd:option('-fc_layers', "10, 20, 30")
 local stride = 1
 
 -- special training mode options (e.g. train only on rainy, test on sunny pictures,...)
-cmd:option('-train_set', 'nil')
-cmd:option('-test_set', 'nil')
+cmd:option('-weather_train', 'nil')
+cmd:option('-lot_train', 'nil')
+cmd:option('-weather_test', 'nil')
+cmd:option('-lot_test', 'nil')
+
+weather = {'sunny', 'rainy', 'cloudy'}
+lotnames = {'PUC', 'UFPR04', 'UFPR05'}
  
 -- class 0 means empty parking spot, 1 means occupied spot
 classes = {'Empty', 'Occupied'}
@@ -64,6 +72,8 @@ cmd:option('-h5_file', '/Users/martina/Documents/Uni/USA/Stanford/2.Quarter/CNN/
 cmd:option('-labels', 'meta_occupied')
 cmd:option('-max_spots', 0)
 
+
+-- Load command line parameters
 local params = cmd:parse(arg)
 
 function string:split(sep)
@@ -77,9 +87,29 @@ end
 conv_layers = params.conv_layers:split(", ")
 fc_layers = params.fc_layers:split(", ")
 
+-- Determine train/test set to filter on, if any
+local train_set = nil
+local test_set = nil
+local test_list = nil
+if params.weather_train ~= 'nil' then
+  train_set = params.weather_train
+  test_list = weather
+  if params.weather_test ~= 'nil' then
+    test_set = params.weather_test
+  end
+elseif params.lot_train ~= 'nil' then
+  train_set = params.lot_train
+  test_list = lotnames
+  if params.lot_test ~= 'nil' then
+    test_set = params.lot_test
+  end
+end
 
 require 'DataLoader'
-local loader = DataLoader{h5_file = params.h5_file, train_cond=params.train_set, labels=params.labels, max_spots=params.max_spots}
+local loader = DataLoader{h5_file = params.h5_file, train_cond=train_set, test_cond=test_set, labels=params.labels, max_spots=params.max_spots}
+if test_set and test_set then
+  loader:reloadTestData(test_set)
+end
 
 NUM_TRAIN = loader:getTrainSize()
 NUM_TEST = loader:getTestSize()
@@ -244,60 +274,58 @@ end -- Finished training
 
 -- Print final train and validation statistics
 --print(string.format('Running model on train set (%d images)...', NUM_TRAIN))
-local train, train_y = loader:getBatch{batch_size = NUM_TRAIN, split = 'train'}
-local train_acc = stats.acc(net:double(), train:double(), train_y:int())
+local train_idx, train_gt, num_labels = stats.classify(net:double(), loader, 'train')
+local val_idx, val_gt, _ = stats.classify(net:double(), loader, 'val')
 
---print(string.format('Train Accuracy: %04f', train_acc))
+local train_acc = stats.acc(train_idx, train_gt, num_labels)
+local val_acc = stats.acc(val_idx, val_gt, num_labels)
 
---print(string.format('Running model on validation set (%d images)...', NUM_VAL))
+-- If only train set is specified, use model to classify all test sets
+if train_set and not test_set then
 
-local val, val_y = loader:getBatch{batch_size = NUM_VAL, split = 'val'}
-local val_acc = stats.acc(net:double(), val:double(), val_y:int())
+  -- Print results for all test sets
+  for i,t in ipairs(test_list) do
+    loader:reloadTestData(t)
+    local test_idx, test_gt, _ = stats.classify(net:double(), loader, 'test')
+    local test_acc = stats.acc(test_idx, test_gt, num_labels)
+    print("**Train Acc,Val Acc,Test Acc,Learn Rate,Batch Size,LR Decay Rate,LR Decay Every,Train Set,Test Set")
+    print(string.format("*%04f,%04f,%04f,%04f,%d,%04f,%d,%s,%s", 
+                        train_acc, val_acc, test_acc, params.learning_rate, params.batch_size, params.lr_decay_factor, 
+                        params.lr_decay_every, train_set, t))
+  end
 
+else
 
--- Optionally, print test statistics
-local test_acc = -1
-if params.print_test == 1 then
-  local test, test_y, paths = loader:getBatch{batch_size = NUM_TEST, split = 'test', get_paths=true}
-  test_acc = stats.acc(net:double(), test:double(), test_y:int())
+  -- Print out only the results for the train/test sets specified
+  -- Also used if no train/test sets are specified
+  local test_idx, test_gt, _ = stats.classify(net:double(), loader, 'test')
+  local test_acc = stats.acc(test_idx, test_gt, num_labels)
+  print("**Train Acc,Val Acc,Test Acc,Learn Rate,Batch Size,LR Decay Rate,LR Decay Every,Train Set,Test Set")
+  print(string.format("*%04f,%04f,%04f,%04f,%d,%04f,%d,%s,%s", 
+                      train_acc, val_acc, test_acc, params.learning_rate, params.batch_size, params.lr_decay_factor, 
+                      params.lr_decay_every, train_set, test_set))
 end
 
-print("**Train Acc,Val Acc,Test Acc,Learn Rate,Batch Size,LR Decay Rate,LR Decay Every,Weather Train,Weather Test")
-print(string.format("*%04f,%04f,%04f,%04f,%d,%04f,%d,%s,%s", 
-                    train_acc, val_acc, test_acc, params.learning_rate, params.batch_size, params.lr_decay_factor, 
-                    params.lr_decay_every, params.train_set, params.test_set))
 
-
---if params.print_test == 1 then
-  --local test, test_y, paths = loader:getBatch{batch_size = NUM_VAL, split = 'test', get_paths=true}
-  --local test_acc = stats.acc(net:double(), test:double(), test_y:int())
-
-  --print(string.format('Test Accuracy: %04f', test_acc))
-
-  --print("*Test Acc,Train Acc,Learn Rate,Batch Size,LR Decay Rate,LR Decay Every,Weather Train,Weather Test")
-  --print(string.format("**%04f,%04f,%04f,%d,%04f,%d,%s,%s", 
-                      --test_acc, train_acc, params.learning_rate, params.batch_size, params.lr_decay_factor, 
-                      --params.lr_decay_every, params.train_set, params.test_set))
-
--- Also an option: print all the test files that were incorrectly labeled
+-- Optionally, print all the test files that were incorrectly labeled
 if params.print_misclassified == 1 then
-  misclass_paths = stats.misclassified(net:double(), test:double(), paths, test_y:int())
+  misclass_paths = stats.misclassified(test_idx, test_gt, num_labels)
   for i, path in ipairs(misclass_paths) do
     print(path)
   end
 end
 
 -- Optionally, save model parameters
-if params.save_model == 1 then
-  local model_filename = string.format("model_%d", os.time())
+if params.save_model ~= 'nil' then
+  --local model_filename = string.format("model_%d", os.time())
+  local model_filename = params.save_model
   torch.save(model_filename, net:float())
   print(string.format("Model parameters saved to: %s", model_filename))
 end
 
 -- Optionally, print confusion matrix parameters for test set
 if params.print_confusion == 1 then
-  local test, test_y = loader:getBatch{batch_size = NUM_TEST, split = 'test'}
-  local conf = stats.confusion(net:double(), test:double(), test_y:int())
+  local conf = stats.confusion(test_idx, test_gt, num_labels)
 
   print('Confusion Matrix Statistics:')
   for k,v in pairs(conf) do
